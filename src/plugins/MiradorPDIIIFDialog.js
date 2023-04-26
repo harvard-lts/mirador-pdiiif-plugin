@@ -30,23 +30,45 @@ export class PDIIIFDialog extends Component {
   constructor(props) {
     super(props);
     this.props = props;
+    this.state = {
+      supportsFilesystemAPI: typeof showSaveFilePicker === "function",
+      estimatingSize: false,
+      downloadSupported: true,
+    };
+  }
+
+  async componentDidUpdate(prevProps) {
+    const { manifest } = this.props;
+
+    // When the manifest is available, estimate the size of the PDF
+    if (manifest !== prevProps.manifest) {
+      if (!manifest?.error && manifest?.json) {
+        this.setState({ estimatingSize: true });
+        // (just an estimate, not the actual size)
+        const estimatedSizeInBytes = await estimatePdfSize({
+          manifest: manifest.json,
+          maxWidth: 1500,
+        });
+        this.setState({ estimatingSize: false });
+
+        // Use the size to infer if the PDF will actually generate correctly
+        // 0... or maybe NaN?
+        if (!estimatedSizeInBytes) {
+          this.setState({ downloadSupported: false });
+        }
+
+        console.log(`Estimated filsize ${estimatedSizeInBytes}`);
+      }
+    }
   }
 
   /**
    * Downoloads the PDF
    */
   downloadPDF = async () => {
-    const { manifest } = this.props;
-
-    // Estimate how large a PDF will probably be given the parameters
-    const estimatedSizeInBytes = await estimatePdfSize({
-      manifest: manifest.json,
-      maxWidth: 1500,
-    });
-
-    console.log(`Estimated filsize ${estimatedSizeInBytes}`);
-
     // Get a writable handle to a file on the user's machine
+
+    // TODO: fully handle Firefox / server side generation with streams
     const handle = await showSaveFilePicker({
       suggestedName: "manifest.pdf",
       types: [
@@ -79,6 +101,33 @@ export class PDIIIFDialog extends Component {
   render() {
     const { classes, closeDialog, containerId, open } = this.props;
 
+    const { estimatingSize, downloadSupported } = this.state;
+
+    let dialogContent;
+
+    if (estimatingSize) {
+      dialogContent = (
+        <DialogContentText>Checking manifest...</DialogContentText>
+      );
+    } else {
+      if (!downloadSupported) {
+        dialogContent = (
+          <DialogContentText>
+            <p>Sorry, this manifest is not supported by PDIIIF</p>
+          </DialogContentText>
+        );
+      } else {
+        dialogContent = (
+          <DialogContentText>
+            <p>This will download a PDF of the current manifest</p>
+            <Button onClick={this.downloadPDF} color="primary">
+              Download PDF
+            </Button>
+          </DialogContentText>
+        );
+      }
+    }
+
     if (!open) null;
 
     return (
@@ -94,14 +143,7 @@ export class PDIIIFDialog extends Component {
         <DialogTitle disableTypography className={classes.h2}>
           <Typography variant="h2">Plugin PDIIIF</Typography>
         </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This is a PDIIIF for using dialog boxes from the top nav bar.
-            <Button onClick={this.downloadPDF} color="primary">
-              Download PDF
-            </Button>
-          </DialogContentText>
-        </DialogContent>
+        <DialogContent>{dialogContent}</DialogContent>
         <DialogActions>
           <Button onClick={closeDialog} color="primary">
             Close
