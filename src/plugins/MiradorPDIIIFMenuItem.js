@@ -108,8 +108,10 @@ class PDIIIFMenuItem extends Component {
           maxWidth: 1500,
         });
 
-        // estimated size, or 0... or maybe NaN?
-        if (estimatedSizeInBytes) {
+        // Estimated size, or 0
+        // N.B. Sometimes this is NaN, but not sure what triggers this
+        // it seems to be be caused bug in PDIIIIF trying to divide 0 by 0
+        if (estimatedSizeInBytes !== 0) {
           setAllowPdfDownload();
           setEstimatedSize(estimatedSizeInBytes);
         }
@@ -126,9 +128,11 @@ class PDIIIFMenuItem extends Component {
     if (!hasChecked) {
       return "Checking document";
     }
+
     if (allowPdfDownload) {
       return "Download PDF";
     }
+
     return "PDF Unvailable";
   };
 
@@ -158,7 +162,7 @@ class PDIIIFMenuItem extends Component {
 
 PDIIIFMenuItem.propTypes = {
   allowPdfDownload: PropTypes.bool,
-  canvasGroupings: PropTypes.object.isRequired,
+  canvasGroupings: PropTypes.array.isRequired,
   handleClose: PropTypes.func,
   openPDIIIFDialog: PropTypes.func,
   manifest: PropTypes.object.isRequired,

@@ -120,30 +120,18 @@ export class PDIIIFDialog extends Component {
   };
 
   /**
-   * Returns content for the dialog
-   */
-  renderDialogContent() {
-    const { savingError } = this.state;
-    const { estimatedSize } = this.props;
-    return (
-      <>
-        {savingError && (
-          <DialogContentText>{savingError.message}</DialogContentText>
-        )}
-        <DialogContentText>
-          Download a PDF of the current document? (Estimated file size:{" "}
-          {this.formatBytes(estimatedSize)})
-        </DialogContentText>
-      </>
-    );
-  }
-
-  /**
    * Returns the rendered component
    */
   render() {
-    const { classes, closeDialog, containerId, open, allowPdfDownload } =
-      this.props;
+    const { savingError } = this.state;
+    const {
+      classes,
+      closeDialog,
+      containerId,
+      open,
+      allowPdfDownload,
+      estimatedSize,
+    } = this.props;
 
     if (!open || !allowPdfDownload) null;
 
@@ -160,7 +148,17 @@ export class PDIIIFDialog extends Component {
         <DialogTitle disableTypography className={classes.h2}>
           <Typography variant="h2">PDF Download</Typography>
         </DialogTitle>
-        <DialogContent>{this.renderDialogContent()}</DialogContent>
+        <DialogContent>
+          {savingError && (
+            <DialogContentText>{savingError.message}</DialogContentText>
+          )}
+          <DialogContentText>
+            Download a PDF of the current document?
+            {estimatedSize
+              ? ` (Estimated file size: ${this.formatBytes(estimatedSize)})`
+              : ""}
+          </DialogContentText>
+        </DialogContent>
         <DialogActions>
           <Button onClick={this.downloadPDF} color="primary">
             Download
