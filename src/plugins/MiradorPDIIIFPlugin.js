@@ -71,7 +71,7 @@ class PDIIIF extends Component {
             <PDFIcon />
           </ListItemIcon>
           <ListItemText primaryTypographyProps={{ variant: "body1" }}>
-            Download PDF
+            PDF Download
           </ListItemText>
         </MenuItem>
       </div>
