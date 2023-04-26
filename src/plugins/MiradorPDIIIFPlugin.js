@@ -28,12 +28,23 @@ const PDIIIFDialogReducer = (state = {}, action) => {
   return state;
 };
 
+const mapStateToProps = (state, { windowId }) => ({
+  manifest: state.manifests[state.windows[windowId].manifestId],
+});
+
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   openDialog: () =>
     dispatch({ type: "OPEN_WINDOW_DIALOG", windowId, dialogType: "PDIIIF" }),
 });
 
 class PDIIIF extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      manifestReady: false,
+    };
+  }
+
   openDialogAndCloseMenu() {
     const { handleClose, openDialog } = this.props;
 
@@ -41,7 +52,18 @@ class PDIIIF extends Component {
     handleClose();
   }
 
+  componentDidMount() {
+    const { manifest } = this.props;
+
+    //  Did the manifest load without errors?
+    if (!manifest?.error && manifest?.json) {
+      this.setState({ manifestReady: true });
+    }
+  }
+
   render() {
+    // Only display the menu item if the manifest is ready
+    if (!this.state.manifestReady) return null;
     return (
       <div>
         <MenuItem onClick={() => this.openDialogAndCloseMenu()}>
@@ -73,6 +95,7 @@ export default {
   name: "PDIIIFPlugin",
   component: PDIIIF,
   mapDispatchToProps,
+  mapStateToProps,
   reducers: {
     windowDialogs: PDIIIFDialogReducer,
   },

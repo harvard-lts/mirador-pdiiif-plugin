@@ -8,29 +8,78 @@ import DialogTitle from "@material-ui/core/DialogTitle";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import Typography from "@material-ui/core/Typography";
-import { getContainerId } from "mirador/dist/es/src/state/selectors/config";
+import { convertManifest, estimatePdfSize } from "pdiiif";
 
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   closeDialog: () => dispatch({ type: "CLOSE_WINDOW_DIALOG", windowId }),
 });
 
-const mapStateToProps = (state, { windowId }) => ({
+const mapStateToProps = (state, { windowId, containerId }) => ({
   open:
     state.windowDialogs[windowId] &&
     state.windowDialogs[windowId].openDialog === "PDIIIF",
+  manifestId: state.windows[windowId].manifestId,
+  manifest: state.manifests[state.windows[windowId].manifestId],
+  containerId: state.config.id,
 });
 
 /**
  * PDIIIFDialog ~
  */
 export class PDIIIFDialog extends Component {
+  constructor(props) {
+    super(props);
+    this.props = props;
+  }
+
+  /**
+   * Downoloads the PDF
+   */
+  downloadPDF = async () => {
+    const { manifest } = this.props;
+
+    // Estimate how large a PDF will probably be given the parameters
+    const estimatedSizeInBytes = await estimatePdfSize({
+      manifest: manifest.json,
+      maxWidth: 1500,
+    });
+
+    console.log(`Estimated filsize ${estimatedSizeInBytes}`);
+
+    // Get a writable handle to a file on the user's machine
+    const handle = await showSaveFilePicker({
+      suggestedName: "manifest.pdf",
+      types: [
+        {
+          description: "PDF file",
+          accept: { "application/pdf": [".pdf"] },
+        },
+      ],
+    });
+
+    if ((await handle.queryPermission({ mode: "readwrite" })) !== "granted") {
+      console.error(`no permission to write to '${handle.name}'`);
+    } else {
+      const pdfPath = (await handle.getFile()).name;
+      const webWritable = await handle.createWritable();
+
+      // Start the PDF generation
+      await convertManifest(manifest, webWritable, {
+        onProgress: onProgress,
+        maxWidth: 1500,
+        coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
+      });
+    }
+    console.log("download should happen here");
+  };
+
   /**
    * Returns the rendered component
    */
   render() {
-    const { classes, closeDialog, containerId, open, windowId } = this.props;
+    const { classes, closeDialog, containerId, open } = this.props;
 
-    if (!open) return "";
+    if (!open) null;
 
     return (
       <Dialog
@@ -48,6 +97,9 @@ export class PDIIIFDialog extends Component {
         <DialogContent>
           <DialogContentText>
             This is a PDIIIF for using dialog boxes from the top nav bar.
+            <Button onClick={this.downloadPDF} color="primary">
+              Download PDF
+            </Button>
           </DialogContentText>
         </DialogContent>
         <DialogActions>
