@@ -96,37 +96,42 @@ export class PDIIIFDialog extends Component {
   };
 
   /**
+   * Returns content for the dialog
+   */
+  renderDialogContent() {
+    const { estimatingSize, downloadSupported } = this.state;
+
+    if (estimatingSize) {
+      return (
+        <DialogContentText>
+          <p>Checking manifest...</p>
+        </DialogContentText>
+      );
+    }
+
+    if (!downloadSupported) {
+      return (
+        <DialogContentText>
+          <p>Sorry, this manifest is not supported by PDIIIF</p>
+        </DialogContentText>
+      );
+    }
+
+    return (
+      <DialogContentText>
+        <p>This will download a PDF of the current manifest</p>
+        <Button onClick={this.downloadPDF} color="primary">
+          Download PDF
+        </Button>
+      </DialogContentText>
+    );
+  }
+
+  /**
    * Returns the rendered component
    */
   render() {
     const { classes, closeDialog, containerId, open } = this.props;
-
-    const { estimatingSize, downloadSupported } = this.state;
-
-    let dialogContent;
-
-    if (estimatingSize) {
-      dialogContent = (
-        <DialogContentText>Checking manifest...</DialogContentText>
-      );
-    } else {
-      if (!downloadSupported) {
-        dialogContent = (
-          <DialogContentText>
-            <p>Sorry, this manifest is not supported by PDIIIF</p>
-          </DialogContentText>
-        );
-      } else {
-        dialogContent = (
-          <DialogContentText>
-            <p>This will download a PDF of the current manifest</p>
-            <Button onClick={this.downloadPDF} color="primary">
-              Download PDF
-            </Button>
-          </DialogContentText>
-        );
-      }
-    }
 
     if (!open) null;
 
@@ -143,7 +148,7 @@ export class PDIIIFDialog extends Component {
         <DialogTitle disableTypography className={classes.h2}>
           <Typography variant="h2">Plugin PDIIIF</Typography>
         </DialogTitle>
-        <DialogContent>{dialogContent}</DialogContent>
+        <DialogContent>{this.renderDialogContent()}</DialogContent>
         <DialogActions>
           <Button onClick={closeDialog} color="primary">
             Close
