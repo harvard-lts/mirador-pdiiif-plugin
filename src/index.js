@@ -1,6 +1,6 @@
-import MiradorPDIIIFPlugin from "./plugins/MiradorPDIIIFPlugin";
+import MiradorPDIIIFMenuItem from "./plugins/MiradorPDIIIFMenuItem";
 import MiradorPDIIIFDialogPlugin from "./plugins/MiradorPDIIIFDialog";
 
-export { MiradorPDIIIFPlugin, MiradorPDIIIFDialogPlugin };
+export { MiradorPDIIIFMenuItem, MiradorPDIIIFDialogPlugin };
 
-export default [MiradorPDIIIFPlugin, MiradorPDIIIFDialogPlugin];
+export default [MiradorPDIIIFMenuItem, MiradorPDIIIFDialogPlugin];

@@ -7,9 +7,8 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import Typography from "@material-ui/core/Typography";
-import { convertManifest, estimatePdfSize } from "pdiiif";
+import { convertManifest } from "pdiiif";
 
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   closeDialog: () => dispatch({ type: "CLOSE_WINDOW_DIALOG", windowId }),
@@ -22,6 +21,8 @@ const mapStateToProps = (state, { windowId, containerId }) => ({
   manifestId: state.windows[windowId].manifestId,
   manifest: state.manifests[state.windows[windowId].manifestId],
   containerId: state.config.id,
+  estimatedSize: state.PDIIIF[windowId]?.estimatedSizeInBytes,
+  allowPdfDownload: state.PDIIIF[windowId]?.allowPdfDownload,
 });
 
 /**
@@ -32,35 +33,9 @@ export class PDIIIFDialog extends Component {
     super(props);
     this.props = props;
     this.state = {
-      supportsFilesystemAPI: typeof showSaveFilePicker === "function",
-      estimatingSize: false,
-      downloadSupported: false,
       savingError: null,
-      estimatedSize: 0,
+      supportsFilesystemAPI: typeof showSaveFilePicker === "function",
     };
-  }
-
-  async componentDidUpdate(prevProps) {
-    const { manifest } = this.props;
-
-    // Use estimation of PDF size to determine if the PDF will generate correctly
-    if (manifest !== prevProps.manifest) {
-      if (!manifest?.error && manifest?.json) {
-        this.setState({ estimatingSize: true });
-        // (just an estimate, not the actual size)
-        const estimatedSizeInBytes = await estimatePdfSize({
-          manifest: manifest.json,
-          maxWidth: 1500,
-        });
-        this.setState({ estimatingSize: false });
-
-        // estimated size, or 0... or maybe NaN?
-        if (estimatedSizeInBytes) {
-          this.setState({ downloadSupported: true });
-          this.setState({ estimatedSize: estimatedSizeInBytes });
-        }
-      }
-    }
   }
 
   /**
@@ -148,46 +123,16 @@ export class PDIIIFDialog extends Component {
    * Returns content for the dialog
    */
   renderDialogContent() {
-    const { estimatingSize, downloadSupported } = this.state;
-
-    if (estimatingSize) {
-      return (
-        <>
-          <DialogContentText>
-            Checking document compatibility...
-          </DialogContentText>
-          <CircularProgress color="primary" />
-        </>
-      );
-    }
-
-    if (!downloadSupported) {
-      return (
-        <DialogContentText>
-          Sorry, this document is not supported by PDIIIF
-        </DialogContentText>
-      );
-    }
-
-    // TODO: fully handle Firefox / server side generation with streams
-    if (!this.state.supportsFilesystemAPI) {
-      return (
-        <DialogContentText>
-          Sorry, PDF generation isn't supported in your browser
-        </DialogContentText>
-      );
-    }
-
+    const { savingError } = this.state;
+    const { estimatedSize } = this.props;
     return (
       <>
-        {this.state.savingError && (
-          <DialogContentText>
-            {this.state.savingError.message}
-          </DialogContentText>
+        {savingError && (
+          <DialogContentText>{savingError.message}</DialogContentText>
         )}
         <DialogContentText>
           Download a PDF of the current document? (Estimated file size:{" "}
-          {this.formatBytes(this.state.estimatedSize)})
+          {this.formatBytes(estimatedSize)})
         </DialogContentText>
       </>
     );
@@ -197,9 +142,10 @@ export class PDIIIFDialog extends Component {
    * Returns the rendered component
    */
   render() {
-    const { classes, closeDialog, containerId, open } = this.props;
+    const { classes, closeDialog, containerId, open, allowPdfDownload } =
+      this.props;
 
-    if (!open) null;
+    if (!open || !allowPdfDownload) null;
 
     return (
       <Dialog
@@ -216,11 +162,9 @@ export class PDIIIFDialog extends Component {
         </DialogTitle>
         <DialogContent>{this.renderDialogContent()}</DialogContent>
         <DialogActions>
-          {this.state.downloadSupported && (
-            <Button onClick={this.downloadPDF} color="primary">
-              Download
-            </Button>
-          )}
+          <Button onClick={this.downloadPDF} color="primary">
+            Download
+          </Button>
           <Button onClick={closeDialog} color="primary">
             Close
           </Button>
@@ -237,8 +181,10 @@ PDIIIFDialog.propTypes = {
   }).isRequired,
   closeDialog: PropTypes.func.isRequired,
   containerId: PropTypes.string.isRequired,
+  estimatedSize: PropTypes.number,
   manifest: PropTypes.object,
   manifestId: PropTypes.string,
+  allowPdfDownload: PropTypes.bool,
   open: PropTypes.bool,
   windowId: PropTypes.string.isRequired,
 };
