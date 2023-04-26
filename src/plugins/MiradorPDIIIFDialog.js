@@ -117,6 +117,18 @@ export class PDIIIFDialog extends Component {
       );
     }
 
+    // TODO: fully handle Firefox / server side generation with streams
+    if (!this.state.supportsFilesystemAPI) {
+      return (
+        <DialogContentText>
+          <p>
+            Sorry, PDFIIIF client-side generation isn't supported in your
+            browser
+          </p>
+        </DialogContentText>
+      );
+    }
+
     return (
       <DialogContentText>
         <p>This will download a PDF of the current manifest</p>
