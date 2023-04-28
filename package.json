@@ -1,6 +1,6 @@
 {
   "name": "@harvard-lts/mirador-pdiiif-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "mirador-pdiiif-plugin React component",
   "main": "dist/index.js",
   "source": "src/index.js",
@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "prebuild": "rm -rf dist && rm -rf es",
+    "prepublishOnly": "npm run build",
     "build": "parcel build",
     "test": "jest",
     "test:coverage": "jest --coverage",
