@@ -87,6 +87,7 @@ export class PDIIIFDialog extends Component {
           ],
         });
       } catch (e) {
+        this.setState({ savingError: e.message });
         return console.error(e);
       }
 
