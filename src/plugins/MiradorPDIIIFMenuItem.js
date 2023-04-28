@@ -133,7 +133,7 @@ class PDIIIFMenuItem extends Component {
       return "Download PDF";
     }
 
-    return "PDF Unvailable";
+    return "PDF Unavailable";
   };
 
   render() {
