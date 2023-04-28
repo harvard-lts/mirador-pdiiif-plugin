@@ -1,0 +1,13 @@
+{
+  "name": "mirador-pdiiif-plugin",
+  "version": "1.0.0",
+  "description": "Mirador plugin for PDIIIF",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "echo \"TBD\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
