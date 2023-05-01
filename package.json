@@ -34,6 +34,9 @@
     "parcel": "^2.8.3",
     "url": "^0.11.0"
   },
+  "parcelDependencies": {
+    "@parcel/transformer-js": "^2.8.3"
+  },
   "author": "",
   "homepage": "",
   "license": "MIT",
