@@ -35,7 +35,8 @@
     "url": "^0.11.0"
   },
   "parcelDependencies": {
-    "@parcel/transformer-js": "^2.8.3"
+    "@parcel/transformer-js": "^2.8.3",
+    "@parcel/transformer-react-refresh-wrap": "^2.8.3"
   },
   "author": "",
   "homepage": "",
