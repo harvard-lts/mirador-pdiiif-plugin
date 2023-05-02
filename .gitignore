@@ -1,0 +1,8 @@
+dist
+es
+node_modules
+npm-debug.log*
+
+.idea/
+.DS_Store
+.parcel-cache
