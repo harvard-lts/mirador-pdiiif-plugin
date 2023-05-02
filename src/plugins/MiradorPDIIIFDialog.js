@@ -67,7 +67,7 @@ export class PDIIIFDialog extends Component {
    * Downoloads the PDF
    */
   downloadPDF = async () => {
-    const { manifest } = this.props;
+    const { manifest, closeDialog } = this.props;
     const { supportsFilesystemAPI } = this.state;
     // Get a writable handle to a file on the user's machine
 
@@ -105,6 +105,8 @@ export class PDIIIFDialog extends Component {
 
           const pdfPath = (await handle.getFile()).name;
           const webWritable = await handle.createWritable();
+
+          closeDialog();
 
           // Start the PDF generation
           return await convertManifest(manifest, webWritable, {
@@ -155,6 +157,9 @@ export class PDIIIFDialog extends Component {
           )}
           <DialogContentText>
             Download a PDF of the current document?
+            <br />
+            The file will appear in the directory you choose. <br />
+            <br />
             {estimatedSize
               ? ` (Estimated file size: ${this.formatBytes(estimatedSize)})`
               : ""}
