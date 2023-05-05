@@ -7,6 +7,7 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
+import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
 import { convertManifest } from "pdiiif";
 
@@ -35,6 +36,7 @@ export class PDIIIFDialog extends Component {
     this.state = {
       savingError: null,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
+      pages: '',
     };
   }
 
@@ -64,13 +66,13 @@ export class PDIIIFDialog extends Component {
   }
 
   /**
-   * Downoloads the PDF
+   * Downloads the PDF
    */
   downloadPDF = async () => {
     const { manifest, closeDialog } = this.props;
-    const { supportsFilesystemAPI } = this.state;
+    const { supportsFilesystemAPI, pages } = this.state;
     // Get a writable handle to a file on the user's machine
-
+    
     let handle;
 
     // TODO: fully handle Firefox / server side generation with streams
@@ -109,9 +111,13 @@ export class PDIIIFDialog extends Component {
           closeDialog();
 
           // Start the PDF generation
+          console.log('PAGES:');
+          console.log(pages);
           return await convertManifest(manifest, webWritable, {
             maxWidth: 1500,
             coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
+            //filterCanvases: [pages],
+            //filterCanvases: ['https://ids.lib.harvard.edu/ids/iiif/4997395/full/full/0/default.jpg'],
           });
         }
       } catch (e) {
@@ -164,6 +170,15 @@ export class PDIIIFDialog extends Component {
               ? ` (Estimated file size: ${this.formatBytes(estimatedSize)})`
               : ""}
           </DialogContentText>
+          <TextField
+            id="pages"
+            label="Pages"
+            margin="normal"
+            variant="outlined"
+            placeholder="1, 4, 8-12, ..."
+            onChange={(event) => this.setState({ pages : event.target.value })}
+            
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={this.downloadPDF} color="primary">
