@@ -110,6 +110,7 @@ export class PDIIIFDialog extends Component {
 
           // Start the PDF generation
           return await convertManifest(manifest, webWritable, {
+            concurrency: 4,
             maxWidth: 1500,
             coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
           });
