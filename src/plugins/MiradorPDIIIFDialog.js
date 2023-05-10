@@ -40,64 +40,87 @@ export class PDIIIFDialog extends Component {
   }
 
   /**
-   * Downoloads the PDF
+   * Downoloads the PDF using the appropriate method
+   * @returns {Promise}
    */
   downloadPDF = async () => {
-    const { manifest, closeDialog } = this.props;
+    const { manifest } = this.props;
     const { supportsFilesystemAPI } = this.state;
-    // Get a writable handle to a file on the user's machine
 
-    let handle;
-
-    // TODO: fully handle Firefox / server side generation with streams
     if (supportsFilesystemAPI) {
-      // The error here will typically be a user hitting esc / cancel
-      try {
-        handle = await showSaveFilePicker({
-          suggestedName: `${manifest.json.label}.pdf`,
-          types: [
-            {
-              description: "PDF file",
-              accept: { "application/pdf": [".pdf"] },
-            },
-          ],
-        });
-      } catch (e) {
-        this.setState({ savingError: e.message });
-        return console.error(e);
-      }
-
-      try {
-        if (
-          (await handle.queryPermission({ mode: "readwrite" })) !== "granted"
-        ) {
-          // Throw error if permission is not granted
-          // N.B. I wasn't able to trigger this error (e.g. by choosing folder with strict permission)
-          // but it's here for completeness
-          throw new Error("Permission to write to file was not granted");
-        } else {
-          // Reset the error state
-          this.setState({ savingError: null });
-
-          const pdfPath = (await handle.getFile()).name;
-          const webWritable = await handle.createWritable();
-
-          closeDialog();
-
-          // Start the PDF generation
-          return await convertManifest(manifest, webWritable, {
-            concurrency: 4,
-            maxWidth: 1500,
-            coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
-          });
-        }
-      } catch (e) {
-        // Display permission / conversion error
-        this.setState({ savingError: e.message });
-        return console.error(e);
-      }
+      return await this.downloadWithFilesystemAPI(manifest.json.label);
     }
   };
+
+  /**
+   * Downoloads the PDF using the Filesystem API
+   * @returns {Promise}
+   */
+  async downloadWithFilesystemAPI(label) {
+    const { closeDialog } = this.props;
+
+    // Get a writable handle to a file on the user's machine
+    let handle;
+
+    // The error here will typically be a user hitting esc / cancel
+    try {
+      handle = await showSaveFilePicker({
+        suggestedName: `${label}.pdf`,
+        types: [
+          {
+            description: "PDF file",
+            accept: { "application/pdf": [".pdf"] },
+          },
+        ],
+      });
+    } catch (e) {
+      this.setState({ savingError: e.message });
+      console.error(e);
+      return Promise.reject(e);
+    }
+
+    try {
+      if ((await handle.queryPermission({ mode: "readwrite" })) !== "granted") {
+        // Throw error if permission is not granted
+        // N.B. I wasn't able to trigger this error (e.g. by choosing folder with strict permission)
+        // but it's here for completeness
+        throw new Error("Permission to write to file was not granted");
+      } else {
+        // Reset the error state
+        this.setState({ savingError: null });
+
+        const pdfPath = (await handle.getFile()).name;
+        const webWritable = await handle.createWritable();
+
+        closeDialog();
+
+        // Start the PDF generation
+        return await this.manifestConverter(webWritable);
+      }
+    } catch (e) {
+      // Display permission / conversion error
+      this.setState({ savingError: e.message });
+      console.error(e);
+      return Promise.reject(e);
+    }
+  }
+
+  /**
+   * Call to PDIIIF convertManifest shared between download methods
+   * @param {WritableStream} webWritable Stream required by PDIIIF
+   * @returns {Promise}
+   */
+  async manifestConverter(webWritable) {
+    const { manifest } = this.props;
+    const abortController = new AbortController();
+
+    return await convertManifest(manifest.json, webWritable, {
+      concurrency: 4,
+      maxWidth: 1500,
+      abortController,
+      coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
+    });
+  }
 
   /**
    * Returns the rendered component
