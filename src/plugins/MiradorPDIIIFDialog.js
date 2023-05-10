@@ -33,7 +33,6 @@ const mapStateToProps = (state, { windowId, containerId }) => ({
 export class PDIIIFDialog extends Component {
   constructor(props) {
     super(props);
-    this.props = props;
     this.state = {
       savingError: null,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
