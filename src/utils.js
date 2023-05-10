@@ -49,7 +49,7 @@ export function checkStreamsaverSupport() {
  * Adapted from PDIIIF web example: https://github.com/jbaiter/pdiiif/blob/main/pdiiif-web/src/iiif.ts
  * @returns {boolean} true if image API has CORS
  */
-export async function imageApiHasCors() {
+export async function checkImageApiHasCors() {
   try {
     let testImgResp = await fetch(images[0]["@id"] ?? images[0].id);
     let testImgData = new Uint8Array(await testImgResp.arrayBuffer());
