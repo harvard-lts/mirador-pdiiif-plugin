@@ -9,7 +9,8 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import Typography from "@material-ui/core/Typography";
 import { convertManifest } from "pdiiif";
-import { formatBytes } from "../utils";
+import { formatBytes, checkStreamsaverSupport } from "../utils";
+import streamSaver from "streamsaver";
 
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   closeDialog: () => dispatch({ type: "CLOSE_WINDOW_DIALOG", windowId }),
@@ -36,6 +37,7 @@ export class PDIIIFDialog extends Component {
     this.state = {
       savingError: null,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
+      supportsStreamsaver: checkStreamsaverSupport(),
     };
   }
 
@@ -45,10 +47,14 @@ export class PDIIIFDialog extends Component {
    */
   downloadPDF = async () => {
     const { manifest } = this.props;
-    const { supportsFilesystemAPI } = this.state;
+    const { supportsFilesystemAPI, supportsStreamsaver } = this.state;
 
     if (supportsFilesystemAPI) {
       return await this.downloadWithFilesystemAPI(manifest.json.label);
+    }
+
+    if (supportsStreamsaver) {
+      return await this.downloadWithStreamsaver(manifest.json.label);
     }
   };
 
@@ -106,6 +112,22 @@ export class PDIIIFDialog extends Component {
   }
 
   /**
+   * Downoloads the PDF using the Streamsaver API
+   * @param {string} label
+   * @returns {Promise}
+   */
+  async downloadWithStreamsaver(label) {
+    const { closeDialog } = this.props;
+
+    const webWritable = new streamSaver.createWriteStream(`${label}.pdf`);
+
+    closeDialog();
+
+    // Start the PDF generation
+    return await this.manifestConverter(webWritable);
+  }
+
+  /**
    * Call to PDIIIF convertManifest shared between download methods
    * @param {WritableStream} webWritable Stream required by PDIIIF
    * @returns {Promise}
@@ -115,7 +137,6 @@ export class PDIIIFDialog extends Component {
     const abortController = new AbortController();
 
     return await convertManifest(manifest.json, webWritable, {
-      concurrency: 4,
       maxWidth: 1500,
       abortController,
       coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
@@ -135,6 +156,7 @@ export class PDIIIFDialog extends Component {
       allowPdfDownload,
       estimatedSize,
     } = this.props;
+    const { supportsFilesystemAPI, supportsStreamsaver } = this.state;
 
     if (!open || !allowPdfDownload) null;
 
@@ -158,7 +180,11 @@ export class PDIIIFDialog extends Component {
           <DialogContentText>
             Download a PDF of the current document?
             <br />
-            The file will appear in the directory you choose. <br />
+            {supportsFilesystemAPI && (
+              <>
+                The file will appear in the directory you choose. <br />
+              </>
+            )}
             <br />
             {estimatedSize
               ? ` (Estimated file size: ${formatBytes(estimatedSize)})`

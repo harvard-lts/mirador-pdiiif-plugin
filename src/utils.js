@@ -31,7 +31,7 @@ export function formatBytes(bytes, decimals = 2) {
  * Check support for streamsaver
  * Adapted from PDIIIF web example: https://github.com/jbaiter/pdiiif/blob/main/pdiiif-web/src/util.ts
  */
-export function supportsStreamsaver() {
+export function checkStreamsaverSupport() {
   try {
     // Our usecase requires WriteableStream
     new Response(new WritableStream());

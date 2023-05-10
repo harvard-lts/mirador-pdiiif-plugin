@@ -45,6 +45,7 @@
     "pdiiif": "^0.1.0",
     "prop-types": "^15.8.1",
     "react": "^16.14.0",
-    "react-dom": "^16.14.0"
+    "react-dom": "^16.14.0",
+    "streamsaver": "^2.0.6"
   }
 }
