@@ -9,6 +9,7 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import Typography from "@material-ui/core/Typography";
 import { convertManifest } from "pdiiif";
+import { formatBytes } from "../utils";
 
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   closeDialog: () => dispatch({ type: "CLOSE_WINDOW_DIALOG", windowId }),
@@ -36,31 +37,6 @@ export class PDIIIFDialog extends Component {
       savingError: null,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
     };
-  }
-
-  /**
-   * Format bytes to human readable string
-   */
-  formatBytes(bytes, decimals = 2) {
-    if (!+bytes) return "0 Bytes";
-
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = [
-      "Bytes",
-      "KiB",
-      "MiB",
-      "GiB",
-      "TiB",
-      "PiB",
-      "EiB",
-      "ZiB",
-      "YiB",
-    ];
-
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
   }
 
   /**
@@ -162,7 +138,7 @@ export class PDIIIFDialog extends Component {
             The file will appear in the directory you choose. <br />
             <br />
             {estimatedSize
-              ? ` (Estimated file size: ${this.formatBytes(estimatedSize)})`
+              ? ` (Estimated file size: ${formatBytes(estimatedSize)})`
               : ""}
           </DialogContentText>
         </DialogContent>
