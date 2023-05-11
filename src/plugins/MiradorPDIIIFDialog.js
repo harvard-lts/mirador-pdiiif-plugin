@@ -35,10 +35,92 @@ export class PDIIIFDialog extends Component {
     super(props);
     this.state = {
       savingError: null,
+      isDownloading: false,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
       supportsStreamsaver: checkStreamsaverSupport(),
+      webWritable: null,
+      abortController: new AbortController(), // Needs to be reset if aborted
     };
   }
+
+  componentDidUpdate(prevProps, prevState) {
+    const { isDownloading, webWritable } = this.state;
+
+    if (
+      prevState.isDownloading !== isDownloading ||
+      prevState.webWritable !== webWritable
+    ) {
+      if (isDownloading) {
+        window.addEventListener("beforeunload", this.handleBeforeUnload);
+        window.addEventListener("unload", this.handleUnload, { once: true });
+      } else {
+        window.removeEventListener("beforeunload", this.handleBeforeUnload);
+        window.removeEventListener("unload", this.handleUnload, { once: true });
+      }
+    }
+  }
+
+  /**
+   * Handle beforeunload event
+   * @param {Event} e
+   */
+  handleBeforeUnload = (e) => {
+    const { isDownloading } = this.state;
+    // Unlike a regular download, if the user *closes* the window / tab
+    // the download will fail, which is unexpected - this is just a warning
+    // Most modern browsers also cannot show a custom message:
+    // https://stackoverflow.com/questions/38879742/is-it-possible-to-display-a-custom-message-in-the-beforeunload-popup
+    if (isDownloading && !supportsFilesystemAPI) {
+      e.preventDefault();
+      return (e.returnValue =
+        "Are you sure? Leaving now will interrupt the download.");
+    }
+  };
+
+  /**
+   * Handle unload event
+   */
+  handleUnload = () => {
+    // N.B. Despite this, browsers aren't guaranteed to fire the unload event (and often don't)
+    // The side effect of this will usually be a download that looks like it's still in progress
+    const { abortController, webWritable } = this.state;
+
+    abortController.abort();
+    webWritable?.abort();
+  };
+
+  /**
+   * Resets the download state
+   * @returns {void}
+   */
+  resetDownloadState = () => {
+    // Cancelling or aborting will always need clear up the state
+    // In particular a new AbortController needs to be created
+    this.setState({ webWritable: null });
+    this.setState({ isDownloading: false });
+    this.setState({ abortController: new AbortController() });
+  };
+
+  /**
+   * Attaches an abort listener to the AbortController
+   */
+  attachAbortListener = () => {
+    const { abortController } = this.state;
+
+    abortController.signal.addEventListener(
+      "abort",
+      async () => {
+        try {
+          await webWritable.abort();
+        } catch {
+          // NOP
+        } finally {
+          this.resetDownloadState();
+        }
+      },
+      { once: true }
+    );
+  };
 
   /**
    * Downoloads the PDF using the appropriate method
@@ -47,6 +129,9 @@ export class PDIIIFDialog extends Component {
   downloadPDF = async () => {
     const { manifest } = this.props;
     const { supportsFilesystemAPI, supportsStreamsaver } = this.state;
+
+    // Ensure fresh state on each download attempt
+    this.resetDownloadState();
 
     if (supportsFilesystemAPI) {
       return await this.downloadWithFilesystemAPI(manifest.json.label);
@@ -97,6 +182,8 @@ export class PDIIIFDialog extends Component {
         const pdfPath = (await handle.getFile()).name;
         const webWritable = await handle.createWritable();
 
+        this.setState({ webWritable: webWritable });
+
         closeDialog();
 
         // Start the PDF generation
@@ -105,6 +192,7 @@ export class PDIIIFDialog extends Component {
     } catch (e) {
       // Display permission / conversion error
       this.setState({ savingError: e.message });
+      this.resetDownloadState();
       console.error(e);
       return Promise.reject(e);
     }
@@ -118,7 +206,8 @@ export class PDIIIFDialog extends Component {
   async downloadWithStreamsaver(label) {
     const { closeDialog } = this.props;
 
-    const webWritable = new streamSaver.createWriteStream(`${label}.pdf`);
+    const webWritable = streamSaver.createWriteStream(`${label}.pdf`);
+    this.setState({ webWritable: webWritable });
 
     closeDialog();
 
@@ -129,18 +218,24 @@ export class PDIIIFDialog extends Component {
   /**
    * Call to PDIIIF convertManifest shared between download methods
    * @param {WritableStream} webWritable Stream required by PDIIIF
-   * @returns {Promise}
+   * @returns {Promise} (implicit)
    */
   async manifestConverter(webWritable) {
     const { manifest } = this.props;
-    const abortController = new AbortController();
+    const { abortController } = this.state;
 
-    return await convertManifest(manifest.json, webWritable, {
+    this.attachAbortListener();
+
+    this.setState({ isDownloading: true });
+
+    await convertManifest(manifest.json, webWritable, {
       concurrency: 4,
       maxWidth: 1500,
       abortController,
       coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
     });
+
+    this.setState({ isDownloading: false });
   }
 
   /**
@@ -156,7 +251,7 @@ export class PDIIIFDialog extends Component {
       allowPdfDownload,
       estimatedSize,
     } = this.props;
-    const { supportsFilesystemAPI, supportsStreamsaver } = this.state;
+    const { supportsFilesystemAPI } = this.state;
 
     if (!open || !allowPdfDownload) null;
 
