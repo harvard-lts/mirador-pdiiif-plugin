@@ -136,6 +136,7 @@ export class PDIIIFDialog extends Component {
     const abortController = new AbortController();
 
     return await convertManifest(manifest.json, webWritable, {
+      concurrency: 4,
       maxWidth: 1500,
       abortController,
       coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
