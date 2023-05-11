@@ -65,15 +65,16 @@ export class PDIIIFDialog extends Component {
    * @param {Event} e
    */
   handleBeforeUnload = (e) => {
-    const { isDownloading } = this.state;
+    const { isDownloading, supportsFilesystemAPI } = this.state;
     // Unlike a regular download, if the user *closes* the window / tab
     // the download will fail, which is unexpected - this is just a warning
     // Most modern browsers also cannot show a custom message:
     // https://stackoverflow.com/questions/38879742/is-it-possible-to-display-a-custom-message-in-the-beforeunload-popup
     if (isDownloading && !supportsFilesystemAPI) {
+      const msg = "Are you sure? Leaving now will interrupt the download.";
       e.preventDefault();
-      return (e.returnValue =
-        "Are you sure? Leaving now will interrupt the download.");
+      e.returnValue = msg;
+      return msg;
     }
   };
 
