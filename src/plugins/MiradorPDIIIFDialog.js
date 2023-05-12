@@ -25,6 +25,7 @@ const mapStateToProps = (state, { windowId, containerId }) => ({
   containerId: state.config.id,
   estimatedSize: state.PDIIIF[windowId]?.estimatedSizeInBytes,
   allowPdfDownload: state.PDIIIF[windowId]?.allowPdfDownload,
+  mitmPath: state.config.miradorPDIIIFPlugin.mitmPath,
 });
 
 /**
@@ -41,6 +42,13 @@ export class PDIIIFDialog extends Component {
       webWritable: null,
       abortController: new AbortController(), // Needs to be reset if aborted
     };
+  }
+
+  componentDidMount() {
+    const { mitmPath } = this.props;
+
+    // Set the streamsaver mitm path or allow default
+    streamSaver.mitm = mitmPath ?? streamSaver.mitm;
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -313,6 +321,7 @@ PDIIIFDialog.propTypes = {
   allowPdfDownload: PropTypes.bool,
   open: PropTypes.bool,
   windowId: PropTypes.string.isRequired,
+  mitmPath: PropTypes.string,
 };
 
 PDIIIFDialog.defaultProps = {
