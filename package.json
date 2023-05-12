@@ -1,6 +1,6 @@
 {
   "name": "@harvard-lts/mirador-pdiiif-plugin",
-  "version": "0.1.4",
+  "version": "0.1.7",
   "description": "mirador-pdiiif-plugin React component",
   "main": "dist/index.js",
   "source": "src/index.js",
@@ -45,6 +45,7 @@
     "pdiiif": "^0.1.0",
     "prop-types": "^15.8.1",
     "react": "^16.14.0",
-    "react-dom": "^16.14.0"
+    "react-dom": "^16.14.0",
+    "streamsaver": "^2.0.6"
   }
 }

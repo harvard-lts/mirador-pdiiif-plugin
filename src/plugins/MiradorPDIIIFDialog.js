@@ -9,6 +9,8 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import Typography from "@material-ui/core/Typography";
 import { convertManifest } from "pdiiif";
+import { formatBytes, checkStreamsaverSupport } from "../utils";
+import streamSaver from "streamsaver";
 
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   closeDialog: () => dispatch({ type: "CLOSE_WINDOW_DIALOG", windowId }),
@@ -23,6 +25,7 @@ const mapStateToProps = (state, { windowId, containerId }) => ({
   containerId: state.config.id,
   estimatedSize: state.PDIIIF[windowId]?.estimatedSizeInBytes,
   allowPdfDownload: state.PDIIIF[windowId]?.allowPdfDownload,
+  mitmPath: state.config.miradorPDIIIFPlugin.mitmPath,
 });
 
 /**
@@ -31,97 +34,218 @@ const mapStateToProps = (state, { windowId, containerId }) => ({
 export class PDIIIFDialog extends Component {
   constructor(props) {
     super(props);
-    this.props = props;
     this.state = {
       savingError: null,
+      isDownloading: false,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
+      supportsStreamsaver: checkStreamsaverSupport(),
+      webWritable: null,
+      abortController: new AbortController(), // Needs to be reset if aborted
     };
   }
 
-  /**
-   * Format bytes to human readable string
-   */
-  formatBytes(bytes, decimals = 2) {
-    if (!+bytes) return "0 Bytes";
+  componentDidMount() {
+    const { mitmPath } = this.props;
 
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = [
-      "Bytes",
-      "KiB",
-      "MiB",
-      "GiB",
-      "TiB",
-      "PiB",
-      "EiB",
-      "ZiB",
-      "YiB",
-    ];
+    // Set the streamsaver mitm path or allow default
+    streamSaver.mitm = mitmPath ?? streamSaver.mitm;
+  }
 
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+  componentDidUpdate(prevProps, prevState) {
+    const { isDownloading, webWritable } = this.state;
 
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    if (
+      prevState.isDownloading !== isDownloading ||
+      prevState.webWritable !== webWritable
+    ) {
+      if (isDownloading) {
+        window.addEventListener("beforeunload", this.handleBeforeUnload);
+        window.addEventListener("unload", this.handleUnload, { once: true });
+      } else {
+        window.removeEventListener("beforeunload", this.handleBeforeUnload);
+        window.removeEventListener("unload", this.handleUnload, { once: true });
+      }
+    }
   }
 
   /**
-   * Downoloads the PDF
+   * Handle beforeunload event
+   * @param {Event} e
    */
-  downloadPDF = async () => {
-    const { manifest, closeDialog } = this.props;
-    const { supportsFilesystemAPI } = this.state;
-    // Get a writable handle to a file on the user's machine
-
-    let handle;
-
-    // TODO: fully handle Firefox / server side generation with streams
-    if (supportsFilesystemAPI) {
-      // The error here will typically be a user hitting esc / cancel
-      try {
-        handle = await showSaveFilePicker({
-          suggestedName: `${manifest.json.label}.pdf`,
-          types: [
-            {
-              description: "PDF file",
-              accept: { "application/pdf": [".pdf"] },
-            },
-          ],
-        });
-      } catch (e) {
-        this.setState({ savingError: e.message });
-        return console.error(e);
-      }
-
-      try {
-        if (
-          (await handle.queryPermission({ mode: "readwrite" })) !== "granted"
-        ) {
-          // Throw error if permission is not granted
-          // N.B. I wasn't able to trigger this error (e.g. by choosing folder with strict permission)
-          // but it's here for completeness
-          throw new Error("Permission to write to file was not granted");
-        } else {
-          // Reset the error state
-          this.setState({ savingError: null });
-
-          const pdfPath = (await handle.getFile()).name;
-          const webWritable = await handle.createWritable();
-
-          closeDialog();
-
-          // Start the PDF generation
-          return await convertManifest(manifest, webWritable, {
-            concurrency: 4,
-            maxWidth: 1500,
-            coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
-          });
-        }
-      } catch (e) {
-        // Display permission / conversion error
-        this.setState({ savingError: e.message });
-        return console.error(e);
-      }
+  handleBeforeUnload = (e) => {
+    const { isDownloading, supportsFilesystemAPI } = this.state;
+    // Unlike a regular download, if the user *closes* the window / tab
+    // the download will fail, which is unexpected - this is just a warning
+    // Most modern browsers also cannot show a custom message:
+    // https://stackoverflow.com/questions/38879742/is-it-possible-to-display-a-custom-message-in-the-beforeunload-popup
+    if (isDownloading && !supportsFilesystemAPI) {
+      const msg = "Are you sure? Leaving now will interrupt the download.";
+      e.preventDefault();
+      e.returnValue = msg;
+      return msg;
     }
   };
+
+  /**
+   * Handle unload event
+   */
+  handleUnload = () => {
+    // N.B. Despite this, browsers aren't guaranteed to fire the unload event (and often don't)
+    // The side effect of this will usually be a download that looks like it's still in progress
+    const { abortController, webWritable } = this.state;
+
+    abortController.abort();
+    webWritable?.abort();
+  };
+
+  /**
+   * Resets the download state
+   * @returns {void}
+   */
+  resetDownloadState = () => {
+    // Cancelling or aborting will always need clear up the state
+    // In particular a new AbortController needs to be created
+    this.setState({ webWritable: null });
+    this.setState({ isDownloading: false });
+    this.setState({ abortController: new AbortController() });
+  };
+
+  /**
+   * Attaches an abort listener to the AbortController
+   */
+  attachAbortListener = () => {
+    const { abortController } = this.state;
+
+    abortController.signal.addEventListener(
+      "abort",
+      async () => {
+        try {
+          await webWritable.abort();
+        } catch {
+          // NOP
+        } finally {
+          this.resetDownloadState();
+        }
+      },
+      { once: true }
+    );
+  };
+
+  /**
+   * Downoloads the PDF using the appropriate method
+   * @returns {Promise}
+   */
+  downloadPDF = async () => {
+    const { manifest } = this.props;
+    const { supportsFilesystemAPI, supportsStreamsaver } = this.state;
+
+    // Ensure fresh state on each download attempt
+    this.resetDownloadState();
+
+    if (supportsFilesystemAPI) {
+      return await this.downloadWithFilesystemAPI(manifest.json.label);
+    }
+
+    if (supportsStreamsaver) {
+      return await this.downloadWithStreamsaver(manifest.json.label);
+    }
+  };
+
+  /**
+   * Downoloads the PDF using the Filesystem API
+   * @returns {Promise}
+   */
+  async downloadWithFilesystemAPI(label) {
+    const { closeDialog } = this.props;
+
+    // Get a writable handle to a file on the user's machine
+    let handle;
+
+    // The error here will typically be a user hitting esc / cancel
+    try {
+      handle = await showSaveFilePicker({
+        suggestedName: `${label}.pdf`,
+        types: [
+          {
+            description: "PDF file",
+            accept: { "application/pdf": [".pdf"] },
+          },
+        ],
+      });
+    } catch (e) {
+      this.setState({ savingError: e.message });
+      console.error(e);
+      return Promise.reject(e);
+    }
+
+    try {
+      if ((await handle.queryPermission({ mode: "readwrite" })) !== "granted") {
+        // Throw error if permission is not granted
+        // N.B. I wasn't able to trigger this error (e.g. by choosing folder with strict permission)
+        // but it's here for completeness
+        throw new Error("Permission to write to file was not granted");
+      } else {
+        // Reset the error state
+        this.setState({ savingError: null });
+
+        const pdfPath = (await handle.getFile()).name;
+        const webWritable = await handle.createWritable();
+
+        this.setState({ webWritable: webWritable });
+
+        closeDialog();
+
+        // Start the PDF generation
+        return await this.manifestConverter(webWritable);
+      }
+    } catch (e) {
+      // Display permission / conversion error
+      this.setState({ savingError: e.message });
+      this.resetDownloadState();
+      console.error(e);
+      return Promise.reject(e);
+    }
+  }
+
+  /**
+   * Downoloads the PDF using the Streamsaver API
+   * @param {string} label
+   * @returns {Promise}
+   */
+  async downloadWithStreamsaver(label) {
+    const { closeDialog } = this.props;
+
+    const webWritable = streamSaver.createWriteStream(`${label}.pdf`);
+    this.setState({ webWritable: webWritable });
+
+    closeDialog();
+
+    // Start the PDF generation
+    return await this.manifestConverter(webWritable);
+  }
+
+  /**
+   * Call to PDIIIF convertManifest shared between download methods
+   * @param {WritableStream} webWritable Stream required by PDIIIF
+   * @returns {Promise} (implicit)
+   */
+  async manifestConverter(webWritable) {
+    const { manifest } = this.props;
+    const { abortController } = this.state;
+
+    this.attachAbortListener();
+
+    this.setState({ isDownloading: true });
+
+    await convertManifest(manifest.json, webWritable, {
+      concurrency: 4,
+      maxWidth: 1500,
+      abortController,
+      coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
+    });
+
+    this.setState({ isDownloading: false });
+  }
 
   /**
    * Returns the rendered component
@@ -136,6 +260,7 @@ export class PDIIIFDialog extends Component {
       allowPdfDownload,
       estimatedSize,
     } = this.props;
+    const { supportsFilesystemAPI } = this.state;
 
     if (!open || !allowPdfDownload) null;
 
@@ -159,10 +284,14 @@ export class PDIIIFDialog extends Component {
           <DialogContentText>
             Download a PDF of the current document?
             <br />
-            The file will appear in the directory you choose. <br />
+            {supportsFilesystemAPI && (
+              <>
+                The file will appear in the directory you choose. <br />
+              </>
+            )}
             <br />
             {estimatedSize
-              ? ` (Estimated file size: ${this.formatBytes(estimatedSize)})`
+              ? ` (Estimated file size: ${formatBytes(estimatedSize)})`
               : ""}
           </DialogContentText>
         </DialogContent>
@@ -192,6 +321,7 @@ PDIIIFDialog.propTypes = {
   allowPdfDownload: PropTypes.bool,
   open: PropTypes.bool,
   windowId: PropTypes.string.isRequired,
+  mitmPath: PropTypes.string,
 };
 
 PDIIIFDialog.defaultProps = {
