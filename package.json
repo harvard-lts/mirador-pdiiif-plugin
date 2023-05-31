@@ -1,6 +1,6 @@
 {
   "name": "@harvard-lts/mirador-pdiiif-plugin",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "mirador-pdiiif-plugin React component",
   "main": "dist/index.js",
   "source": "src/index.js",
@@ -42,7 +42,7 @@
     "@material-ui/core": "^4.12.3",
     "@material-ui/icons": "^4.11.2",
     "mirador": "^3.3.0",
-    "pdiiif": "^0.1.0",
+    "pdiiif": "^0.1.2",
     "prop-types": "^15.8.1",
     "react": "^16.14.0",
     "react-dom": "^16.14.0",
