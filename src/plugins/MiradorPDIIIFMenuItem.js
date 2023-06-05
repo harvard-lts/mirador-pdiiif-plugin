@@ -7,6 +7,7 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import { withStyles } from "@material-ui/core/styles";
 import { getCanvasGroupings } from "mirador/dist/es/src/state/selectors";
 import { estimatePdfSize } from "pdiiif";
+import { checkImageApiHasCors, checkStreamsaverSupport } from "../utils";
 
 // select an icon from material icons to import and use: https://v4.mui.com/components/material-icons/
 import PDFIcon from "@material-ui/icons/PictureAsPdf";
@@ -75,6 +76,8 @@ class PDIIIFMenuItem extends Component {
     this.state = {
       hasChecked: false,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
+      supportsStreamsaver: checkStreamsaverSupport(),
+      imageApiHasCors: checkImageApiHasCors(),
     };
   }
 
@@ -93,8 +96,17 @@ class PDIIIFMenuItem extends Component {
       allowPdfDownload,
       setEstimatedSize,
     } = this.props;
+    const { supportsFilesystemAPI, supportsStreamsaver, imageApiHasCors } =
+      this.state;
 
-    if (allowPdfDownload || !this.state.supportsFilesystemAPI) {
+    // If already allowed, don't check again
+    // Don't allow PDF download if neither Filesystem API or Streamsaver are supported
+    // Or if image API doesn't have CORS headers
+    if (
+      allowPdfDownload ||
+      (!supportsFilesystemAPI && !supportsStreamsaver) ||
+      !imageApiHasCors
+    ) {
       this.setState({ hasChecked: true });
       return;
     }
