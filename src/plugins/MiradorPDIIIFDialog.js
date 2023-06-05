@@ -82,7 +82,6 @@ export class PDIIIFDialog extends Component {
             const end = Number.parseInt(group.slice(1));
             if (end < 1 || end > canvasCount) {
               this.setState({ pageError: true });
-              console.log("invalid range");
             }
             newIdxs = createRange(1, end);
           } else if (group.endsWith("-")) {
