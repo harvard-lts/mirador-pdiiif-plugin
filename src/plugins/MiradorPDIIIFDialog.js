@@ -47,17 +47,7 @@ function formatBytes(bytes, decimals = 2) {
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = [
-    "Bytes",
-    "KiB",
-    "MiB",
-    "GiB",
-    "TiB",
-    "PiB",
-    "EiB",
-    "ZiB",
-    "YiB",
-  ];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
@@ -233,6 +223,10 @@ export class PDIIIFDialog extends Component {
 
     if (!open || !allowPdfDownload) null;
 
+    const fileSizeText = estimatedSize
+      ? ` and has an estimated file size of ${formatBytes(estimatedSize)}`
+      : "";
+
     return (
       <Dialog
         container={document.querySelector(`#${containerId} .mirador-viewer`)}
@@ -253,16 +247,11 @@ export class PDIIIFDialog extends Component {
           <DialogContentText>
             Download a PDF of the current document?
             <br />
-            The file will appear in the directory you choose. <br />
             <br />
-            {estimatedSize
-              ? ` (Estimated file size: ${formatBytes(estimatedSize)})`
-              : ""}
-            <br />
-            <br />
-            The source document contains {canvasIds.length} pages. All pages
-            will be included by default. Optionally you may provide a comma
-            separated list of pages and/or ranges.
+            The document contains {canvasIds.length} pages{fileSizeText}. All
+            pages will be included by default. If you wish to download certain
+            portions of it, you may provide a comma separated list of pages
+            and/or ranges.
           </DialogContentText>
           <TextField
             id="pages"
