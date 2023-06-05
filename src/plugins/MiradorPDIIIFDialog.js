@@ -277,7 +277,7 @@ export class PDIIIFDialog extends Component {
         <DialogActions>
           <Button
             onClick={this.downloadPDF}
-            className={pageError && classes.disabledButton}
+            className={pageError ? classes.disabledButton : ""}
             color="primary"
             disabled={pageError}
           >
@@ -295,6 +295,17 @@ export class PDIIIFDialog extends Component {
 PDIIIFDialog.defaultProps = {
   canvases: [],
   open: false,
+};
+
+PDIIIFDialog.propTypes = {
+  allowPdfDownload: PropTypes.bool.isRequired,
+  canvasIds: PropTypes.arrayOf(PropTypes.string).isRequired,
+  classes: PropTypes.objectOf(PropTypes.string).isRequired,
+  closeDialog: PropTypes.func.isRequired,
+  containerId: PropTypes.string.isRequired,
+  estimatedSize: PropTypes.number,
+  manifest: PropTypes.object.isRequired,
+  open: PropTypes.bool,
 };
 
 const styles = () => ({
