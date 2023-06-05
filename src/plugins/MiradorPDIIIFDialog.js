@@ -10,12 +10,13 @@ import DialogContentText from "@material-ui/core/DialogContentText";
 import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
 import { convertManifest } from "pdiiif";
+import { getCanvases } from "mirador/dist/es/src/state/selectors";
 
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   closeDialog: () => dispatch({ type: "CLOSE_WINDOW_DIALOG", windowId }),
 });
 
-const mapStateToProps = (state, { windowId, containerId }) => ({
+const mapStateToProps = (state, { windowId }) => ({
   open:
     state.windowDialogs[windowId] &&
     state.windowDialogs[windowId].openDialog === "PDIIIF",
@@ -24,7 +25,116 @@ const mapStateToProps = (state, { windowId, containerId }) => ({
   containerId: state.config.id,
   estimatedSize: state.PDIIIF[windowId]?.estimatedSizeInBytes,
   allowPdfDownload: state.PDIIIF[windowId]?.allowPdfDownload,
+  canvasIds: getCanvases(state, { windowId }).map((canvas) => canvas.id),
 });
+
+/**
+ * createRange
+ * Adapted from PDIIIF's range function
+ * @param {Number} start - start of range
+ * @param {Number} end  - end of range
+ * @returns {Array} Array of numbers
+ */
+function createRange(start, end) {
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
+/**
+ * Parse string from input to generate array of corresponding canvasId's
+ * Adapted from PDIIIF's parseCanvasRanges function
+ * @param {String} indexSpec String of comma separated pages and/or ranges
+ * @param {Array} canvasIds Array of all canvasId's
+ * @returns {Array|undefined} Array of corresponding canvasId's
+ */
+function parseCanvasRanges(indexSpec, canvasIds) {
+  const canvasCount = canvasIds.length;
+
+  // First find the indexes of the canvases to be included (set will remove dupes)
+  const canvasIdxs = new Set(
+    indexSpec
+      .split(",")
+      .filter((g) => g.length > 0)
+      .reduce((idxs, group) => {
+        let newIdxs;
+        if (group.startsWith("-")) {
+          const end = Number.parseInt(group.slice(1));
+          if (end < 1 || end > canvasCount) {
+            // TODO: Error handle
+            console.log("invalid range");
+          }
+          newIdxs = createRange(1, end);
+        } else if (group.endsWith("-")) {
+          const start = Number.parseInt(group.slice(0, -1));
+          if (start < 1 || start > canvasCount) {
+            // TODO: Error handle
+            console.log("invalid range");
+          }
+          newIdxs = createRange(start, canvasCount);
+        } else if (group.indexOf("-") > 0) {
+          const parts = group.split("-");
+          const [start, end] = parts.map((p) => Number.parseInt(p, 10));
+          if (
+            start < 1 ||
+            end < 1 ||
+            start > end ||
+            start > canvasCount ||
+            end > canvasCount
+          ) {
+            // TODO: Error handle
+            console.log("invalid range");
+          }
+          newIdxs = createRange(
+            Number.parseInt(parts[0]),
+            Number.parseInt(parts[1])
+          );
+        } else {
+          const num = Number.parseInt(group);
+          if (num < 1 || num > canvasCount) {
+            // TODO: Error handle
+            console.log("invalid range");
+          }
+          newIdxs = [num];
+        }
+        if (newIdxs.find(Number.isNaN)) {
+          // TODO: Error handle
+          console.log("invalid range");
+        }
+        return idxs.concat(newIdxs);
+      }, [])
+  );
+
+  // Next filter the canvasIds to only include those from canvasIdxs
+  const out = canvasIds.filter((_, i) => canvasIdxs.has(i + 1));
+  if (out.length === 0) {
+    return undefined;
+  }
+  return out;
+}
+
+/**
+ * Format bytes to human readable string
+ */
+function formatBytes(bytes, decimals = 2) {
+  if (!+bytes) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = [
+    "Bytes",
+    "KiB",
+    "MiB",
+    "GiB",
+    "TiB",
+    "PiB",
+    "EiB",
+    "ZiB",
+    "YiB",
+  ];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 
 /**
  * PDIIIFDialog ~
@@ -36,43 +146,18 @@ export class PDIIIFDialog extends Component {
     this.state = {
       savingError: null,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
-      pages: '',
+      indexSpec: "",
     };
-  }
-
-  /**
-   * Format bytes to human readable string
-   */
-  formatBytes(bytes, decimals = 2) {
-    if (!+bytes) return "0 Bytes";
-
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = [
-      "Bytes",
-      "KiB",
-      "MiB",
-      "GiB",
-      "TiB",
-      "PiB",
-      "EiB",
-      "ZiB",
-      "YiB",
-    ];
-
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
   }
 
   /**
    * Downloads the PDF
    */
   downloadPDF = async () => {
-    const { manifest, closeDialog } = this.props;
-    const { supportsFilesystemAPI, pages } = this.state;
+    const { manifest, closeDialog, canvasIds } = this.props;
+    const { supportsFilesystemAPI, indexSpec } = this.state;
     // Get a writable handle to a file on the user's machine
-    
+
     let handle;
 
     // TODO: fully handle Firefox / server side generation with streams
@@ -111,13 +196,10 @@ export class PDIIIFDialog extends Component {
           closeDialog();
 
           // Start the PDF generation
-          console.log('PAGES:');
-          console.log(pages);
           return await convertManifest(manifest, webWritable, {
             maxWidth: 1500,
             coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
-            //filterCanvases: [pages],
-            //filterCanvases: ['https://ids.lib.harvard.edu/ids/iiif/4997395/full/full/0/default.jpg'],
+            filterCanvases: parseCanvasRanges(indexSpec, canvasIds),
           });
         }
       } catch (e) {
@@ -167,7 +249,7 @@ export class PDIIIFDialog extends Component {
             The file will appear in the directory you choose. <br />
             <br />
             {estimatedSize
-              ? ` (Estimated file size: ${this.formatBytes(estimatedSize)})`
+              ? ` (Estimated file size: ${formatBytes(estimatedSize)})`
               : ""}
           </DialogContentText>
           <TextField
@@ -176,8 +258,9 @@ export class PDIIIFDialog extends Component {
             margin="normal"
             variant="outlined"
             placeholder="1, 4, 8-12, ..."
-            onChange={(event) => this.setState({ pages : event.target.value })}
-            
+            onChange={(event) =>
+              this.setState({ indexSpec: event.target.value })
+            }
           />
         </DialogContent>
         <DialogActions>
