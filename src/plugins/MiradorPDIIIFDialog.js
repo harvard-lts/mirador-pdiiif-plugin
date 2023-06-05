@@ -40,78 +40,6 @@ function createRange(start, end) {
 }
 
 /**
- * Parse string from input to generate array of corresponding canvasId's
- * Adapted from PDIIIF's parseCanvasRanges function
- * @param {String} indexSpec String of comma separated pages and/or ranges
- * @param {Array} canvasIds Array of all canvasId's
- * @returns {Array|undefined} Array of corresponding canvasId's
- */
-function parseCanvasRanges(indexSpec, canvasIds) {
-  const canvasCount = canvasIds.length;
-
-  // First find the indexes of the canvases to be included (set will remove dupes)
-  const canvasIdxs = new Set(
-    indexSpec
-      .split(",")
-      .filter((g) => g.length > 0)
-      .reduce((idxs, group) => {
-        let newIdxs;
-        if (group.startsWith("-")) {
-          const end = Number.parseInt(group.slice(1));
-          if (end < 1 || end > canvasCount) {
-            // TODO: Error handle
-            console.log("invalid range");
-          }
-          newIdxs = createRange(1, end);
-        } else if (group.endsWith("-")) {
-          const start = Number.parseInt(group.slice(0, -1));
-          if (start < 1 || start > canvasCount) {
-            // TODO: Error handle
-            console.log("invalid range");
-          }
-          newIdxs = createRange(start, canvasCount);
-        } else if (group.indexOf("-") > 0) {
-          const parts = group.split("-");
-          const [start, end] = parts.map((p) => Number.parseInt(p, 10));
-          if (
-            start < 1 ||
-            end < 1 ||
-            start > end ||
-            start > canvasCount ||
-            end > canvasCount
-          ) {
-            // TODO: Error handle
-            console.log("invalid range");
-          }
-          newIdxs = createRange(
-            Number.parseInt(parts[0]),
-            Number.parseInt(parts[1])
-          );
-        } else {
-          const num = Number.parseInt(group);
-          if (num < 1 || num > canvasCount) {
-            // TODO: Error handle
-            console.log("invalid range");
-          }
-          newIdxs = [num];
-        }
-        if (newIdxs.find(Number.isNaN)) {
-          // TODO: Error handle
-          console.log("invalid range");
-        }
-        return idxs.concat(newIdxs);
-      }, [])
-  );
-
-  // Next filter the canvasIds to only include those from canvasIdxs
-  const out = canvasIds.filter((_, i) => canvasIdxs.has(i + 1));
-  if (out.length === 0) {
-    return undefined;
-  }
-  return out;
-}
-
-/**
  * Format bytes to human readable string
  */
 function formatBytes(bytes, decimals = 2) {
@@ -147,7 +75,77 @@ export class PDIIIFDialog extends Component {
       savingError: null,
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
       indexSpec: "",
+      pageError: false,
+      filteredCanvasIds: [],
     };
+  }
+
+  /**
+   * Parse string from input to generate array of corresponding canvasId's
+   * Adapted from PDIIIF's parseCanvasRanges function
+   * @param {String} indexSpec String of comma separated pages and/or ranges
+   * @param {Array} canvasIds Array of all canvasId's
+   * @returns {Array|undefined} Array of corresponding canvasId's
+   */
+  parseCanvasRanges(indexSpec, canvasIds) {
+    const canvasCount = canvasIds.length;
+
+    // First find the indexes of the canvases to be included (set will remove dupes)
+    const canvasIdxs = new Set(
+      indexSpec
+        .split(",")
+        .filter((g) => g.length > 0)
+        .reduce((idxs, group) => {
+          let newIdxs;
+          if (group.startsWith("-")) {
+            const end = Number.parseInt(group.slice(1));
+            if (end < 1 || end > canvasCount) {
+              this.setState({ pageError: true });
+              console.log("invalid range");
+            }
+            newIdxs = createRange(1, end);
+          } else if (group.endsWith("-")) {
+            const start = Number.parseInt(group.slice(0, -1));
+            if (start < 1 || start > canvasCount) {
+              this.setState({ pageError: true });
+            }
+            newIdxs = createRange(start, canvasCount);
+          } else if (group.indexOf("-") > 0) {
+            const parts = group.split("-");
+            const [start, end] = parts.map((p) => Number.parseInt(p, 10));
+            if (
+              start < 1 ||
+              end < 1 ||
+              start > end ||
+              start > canvasCount ||
+              end > canvasCount
+            ) {
+              this.setState({ pageError: true });
+            }
+            newIdxs = createRange(
+              Number.parseInt(parts[0]),
+              Number.parseInt(parts[1])
+            );
+          } else {
+            const num = Number.parseInt(group);
+            if (num < 1 || num > canvasCount) {
+              this.setState({ pageError: true });
+            }
+            newIdxs = [num];
+          }
+          if (newIdxs.find(Number.isNaN)) {
+            this.setState({ pageError: true });
+          }
+          return idxs.concat(newIdxs);
+        }, [])
+    );
+
+    // Next filter the canvasIds to only include those from canvasIdxs
+    const out = canvasIds.filter((_, i) => canvasIdxs.has(i + 1));
+    if (out.length === 0) {
+      return undefined;
+    }
+    return out;
   }
 
   /**
@@ -160,7 +158,6 @@ export class PDIIIFDialog extends Component {
 
     let handle;
 
-    // TODO: fully handle Firefox / server side generation with streams
     if (supportsFilesystemAPI) {
       // The error here will typically be a user hitting esc / cancel
       try {
@@ -210,11 +207,20 @@ export class PDIIIFDialog extends Component {
     }
   };
 
+  handlePageChange = (event) => {
+    const { canvasIds } = this.props;
+    this.setState({ pageError: false });
+    this.setState({ indexSpec: event.target.value });
+    this.setState({
+      filteredCanvasIds: this.parseCanvasRanges(event.target.value, canvasIds),
+    });
+  };
+
   /**
    * Returns the rendered component
    */
   render() {
-    const { savingError } = this.state;
+    const { savingError, pageError } = this.state;
     const {
       classes,
       closeDialog,
@@ -222,6 +228,7 @@ export class PDIIIFDialog extends Component {
       open,
       allowPdfDownload,
       estimatedSize,
+      canvasIds,
     } = this.props;
 
     if (!open || !allowPdfDownload) null;
@@ -251,6 +258,11 @@ export class PDIIIFDialog extends Component {
             {estimatedSize
               ? ` (Estimated file size: ${formatBytes(estimatedSize)})`
               : ""}
+            <br />
+            <br />
+            The source document contains {canvasIds.length} pages. All pages
+            will be included by default. Optionally you may provide a comma
+            separated list of pages and/or ranges.
           </DialogContentText>
           <TextField
             id="pages"
@@ -258,13 +270,17 @@ export class PDIIIFDialog extends Component {
             margin="normal"
             variant="outlined"
             placeholder="1, 4, 8-12, ..."
-            onChange={(event) =>
-              this.setState({ indexSpec: event.target.value })
-            }
+            error={pageError}
+            onChange={this.handlePageChange}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={this.downloadPDF} color="primary">
+          <Button
+            onClick={this.downloadPDF}
+            className={pageError && classes.disabledButton}
+            color="primary"
+            disabled={pageError}
+          >
             Download
           </Button>
           <Button onClick={closeDialog} color="primary">
@@ -275,21 +291,6 @@ export class PDIIIFDialog extends Component {
     );
   }
 }
-
-PDIIIFDialog.propTypes = {
-  classes: PropTypes.shape({
-    h2: PropTypes.string,
-    h3: PropTypes.string,
-  }).isRequired,
-  closeDialog: PropTypes.func.isRequired,
-  containerId: PropTypes.string.isRequired,
-  estimatedSize: PropTypes.number,
-  manifest: PropTypes.object,
-  manifestId: PropTypes.string,
-  allowPdfDownload: PropTypes.bool,
-  open: PropTypes.bool,
-  windowId: PropTypes.string.isRequired,
-};
 
 PDIIIFDialog.defaultProps = {
   canvases: [],
@@ -302,6 +303,9 @@ const styles = () => ({
   },
   h3: {
     marginTop: "20px",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 
