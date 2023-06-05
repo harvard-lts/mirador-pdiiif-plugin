@@ -1,6 +1,6 @@
 {
   "name": "@harvard-lts/mirador-pdiiif-plugin",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "mirador-pdiiif-plugin React component",
   "main": "dist/index.js",
   "source": "src/index.js",
