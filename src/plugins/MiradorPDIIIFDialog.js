@@ -196,6 +196,15 @@ export class PDIIIFDialog extends Component {
 
   componentDidUpdate(prevProps, prevState) {
     const { isDownloading, webWritable } = this.state;
+    const { open } = this.props;
+
+    // If the dialog was closed and re-opened, reset the input state
+    if (!prevProps.open && open) {
+      this.setState({ indexSpec: "" });
+      this.setState({
+        filteredCanvasIds: undefined,
+      });
+    }
 
     if (
       prevState.isDownloading !== isDownloading ||
