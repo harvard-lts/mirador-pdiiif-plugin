@@ -57,7 +57,7 @@ export class PDIIIFDialog extends Component {
       abortController: new AbortController(), // Needs to be reset if aborted
       indexSpec: "",
       pageError: false,
-      filteredCanvasIds: [],
+      filteredCanvasIds: undefined, // Undefined will trigger all pages
     };
   }
 
@@ -455,6 +455,7 @@ export class PDIIIFDialog extends Component {
             placeholder="1, 4, 8-12, ..."
             error={pageError}
             onChange={this.handlePageChange}
+            value={this.state.indexSpec}
           />
         </DialogContent>
         <DialogActions>
