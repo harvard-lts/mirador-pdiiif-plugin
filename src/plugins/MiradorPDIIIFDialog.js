@@ -128,65 +128,6 @@ export class PDIIIFDialog extends Component {
     return out;
   }
 
-  /**
-   * Downloads the PDF
-   */
-  downloadPDF = async () => {
-    const { manifest, closeDialog, canvasIds } = this.props;
-    const { supportsFilesystemAPI, indexSpec } = this.state;
-    // Get a writable handle to a file on the user's machine
-
-    let handle;
-
-    if (supportsFilesystemAPI) {
-      // The error here will typically be a user hitting esc / cancel
-      try {
-        handle = await showSaveFilePicker({
-          suggestedName: `${manifest.json.label}.pdf`,
-          types: [
-            {
-              description: "PDF file",
-              accept: { "application/pdf": [".pdf"] },
-            },
-          ],
-        });
-      } catch (e) {
-        this.setState({ savingError: e.message });
-        return console.error(e);
-      }
-
-      try {
-        if (
-          (await handle.queryPermission({ mode: "readwrite" })) !== "granted"
-        ) {
-          // Throw error if permission is not granted
-          // N.B. I wasn't able to trigger this error (e.g. by choosing folder with strict permission)
-          // but it's here for completeness
-          throw new Error("Permission to write to file was not granted");
-        } else {
-          // Reset the error state
-          this.setState({ savingError: null });
-
-          const pdfPath = (await handle.getFile()).name;
-          const webWritable = await handle.createWritable();
-
-          closeDialog();
-
-          // Start the PDF generation
-          return await convertManifest(manifest, webWritable, {
-            maxWidth: 1500,
-            coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
-            filterCanvases: parseCanvasRanges(indexSpec, canvasIds),
-          });
-        }
-      } catch (e) {
-        // Display permission / conversion error
-        this.setState({ savingError: e.message });
-        return console.error(e);
-      }
-    }
-  };
-
   componentDidMount() {
     const { mitmPath } = this.props;
 
