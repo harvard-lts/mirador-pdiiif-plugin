@@ -256,7 +256,9 @@ export class PDIIIFDialog extends Component {
       const date = new Date();
       suggestedName = `PDF Download ${date.getYear()}-${date.getMonth()}-${date.getDate()}`;
     }
-    suggestedName = `${suggestedName}.pdf`;
+
+    // Enforce character limit (arbitrary)
+    suggestedName = `${suggestedName.slice(0, 256)}.pdf`;
 
     // Ensure fresh state on each download attempt
     this.resetDownloadState();
