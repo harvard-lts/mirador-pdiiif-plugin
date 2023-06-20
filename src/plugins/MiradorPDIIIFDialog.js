@@ -7,8 +7,10 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
+import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
 import { convertManifest } from "pdiiif";
+import { getCanvases } from "mirador/dist/es/src/state/selectors";
 import { formatBytes, checkStreamsaverSupport } from "../utils";
 import streamSaver from "streamsaver";
 
@@ -16,7 +18,7 @@ const mapDispatchToProps = (dispatch, { windowId }) => ({
   closeDialog: () => dispatch({ type: "CLOSE_WINDOW_DIALOG", windowId }),
 });
 
-const mapStateToProps = (state, { windowId, containerId }) => ({
+const mapStateToProps = (state, { windowId }) => ({
   open:
     state.windowDialogs[windowId] &&
     state.windowDialogs[windowId].openDialog === "PDIIIF",
@@ -25,8 +27,20 @@ const mapStateToProps = (state, { windowId, containerId }) => ({
   containerId: state.config.id,
   estimatedSize: state.PDIIIF[windowId]?.estimatedSizeInBytes,
   allowPdfDownload: state.PDIIIF[windowId]?.allowPdfDownload,
+  canvasIds: getCanvases(state, { windowId }).map((canvas) => canvas.id),
   mitmPath: state.config.miradorPDIIIFPlugin.mitmPath,
 });
+
+/**
+ * createRange
+ * Adapted from PDIIIF's range function
+ * @param {Number} start - start of range
+ * @param {Number} end  - end of range
+ * @returns {Array} Array of numbers
+ */
+function createRange(start, end) {
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
 
 /**
  * PDIIIFDialog ~
@@ -41,7 +55,77 @@ export class PDIIIFDialog extends Component {
       supportsStreamsaver: checkStreamsaverSupport(),
       webWritable: null,
       abortController: new AbortController(), // Needs to be reset if aborted
+      indexSpec: "",
+      pageError: false,
+      filteredCanvasIds: undefined, // Undefined will trigger all pages
     };
+  }
+
+  /**
+   * Parse string from input to generate array of corresponding canvasId's
+   * Adapted from PDIIIF's parseCanvasRanges function
+   * @param {String} indexSpec String of comma separated pages and/or ranges
+   * @param {Array} canvasIds Array of all canvasId's
+   * @returns {Array|undefined} Array of corresponding canvasId's
+   */
+  parseCanvasRanges(indexSpec, canvasIds) {
+    const canvasCount = canvasIds.length;
+
+    // First find the indexes of the canvases to be included (set will remove dupes)
+    const canvasIdxs = new Set(
+      indexSpec
+        .split(",")
+        .filter((g) => g.length > 0)
+        .reduce((idxs, group) => {
+          let newIdxs;
+          if (group.startsWith("-")) {
+            const end = Number.parseInt(group.slice(1));
+            if (end < 1 || end > canvasCount) {
+              this.setState({ pageError: true });
+            }
+            newIdxs = createRange(1, end);
+          } else if (group.endsWith("-")) {
+            const start = Number.parseInt(group.slice(0, -1));
+            if (start < 1 || start > canvasCount) {
+              this.setState({ pageError: true });
+            }
+            newIdxs = createRange(start, canvasCount);
+          } else if (group.indexOf("-") > 0) {
+            const parts = group.split("-");
+            const [start, end] = parts.map((p) => Number.parseInt(p, 10));
+            if (
+              start < 1 ||
+              end < 1 ||
+              start > end ||
+              start > canvasCount ||
+              end > canvasCount
+            ) {
+              this.setState({ pageError: true });
+            }
+            newIdxs = createRange(
+              Number.parseInt(parts[0]),
+              Number.parseInt(parts[1])
+            );
+          } else {
+            const num = Number.parseInt(group);
+            if (num < 1 || num > canvasCount) {
+              this.setState({ pageError: true });
+            }
+            newIdxs = [num];
+          }
+          if (newIdxs.find(Number.isNaN)) {
+            this.setState({ pageError: true });
+          }
+          return idxs.concat(newIdxs);
+        }, [])
+    );
+
+    // Next filter the canvasIds to only include those from canvasIdxs
+    const out = canvasIds.filter((_, i) => canvasIdxs.has(i + 1));
+    if (out.length === 0) {
+      return undefined;
+    }
+    return out;
   }
 
   componentDidMount() {
@@ -53,6 +137,15 @@ export class PDIIIFDialog extends Component {
 
   componentDidUpdate(prevProps, prevState) {
     const { isDownloading, webWritable } = this.state;
+    const { open } = this.props;
+
+    // If the dialog was closed and re-opened, reset the input state
+    if (!prevProps.open && open) {
+      this.setState({ indexSpec: "" });
+      this.setState({
+        filteredCanvasIds: undefined,
+      });
+    }
 
     if (
       prevState.isDownloading !== isDownloading ||
@@ -84,6 +177,15 @@ export class PDIIIFDialog extends Component {
       e.returnValue = msg;
       return msg;
     }
+  };
+
+  handlePageChange = (event) => {
+    const { canvasIds } = this.props;
+    this.setState({ pageError: false });
+    this.setState({ indexSpec: event.target.value });
+    this.setState({
+      filteredCanvasIds: this.parseCanvasRanges(event.target.value, canvasIds),
+    });
   };
 
   /**
@@ -231,7 +333,7 @@ export class PDIIIFDialog extends Component {
    */
   async manifestConverter(webWritable) {
     const { manifest } = this.props;
-    const { abortController } = this.state;
+    const { abortController, filteredCanvasIds } = this.state;
 
     this.attachAbortListener();
 
@@ -241,6 +343,7 @@ export class PDIIIFDialog extends Component {
       concurrency: 4,
       maxWidth: 1500,
       abortController,
+      filterCanvases: filteredCanvasIds,
       coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
     });
 
@@ -251,7 +354,7 @@ export class PDIIIFDialog extends Component {
    * Returns the rendered component
    */
   render() {
-    const { savingError } = this.state;
+    const { savingError, pageError } = this.state;
     const {
       classes,
       closeDialog,
@@ -259,10 +362,14 @@ export class PDIIIFDialog extends Component {
       open,
       allowPdfDownload,
       estimatedSize,
+      canvasIds,
     } = this.props;
-    const { supportsFilesystemAPI } = this.state;
 
     if (!open || !allowPdfDownload) null;
+
+    const fileSizeText = estimatedSize
+      ? ` and has an estimated file size of ${formatBytes(estimatedSize)}`
+      : "";
 
     return (
       <Dialog
@@ -284,19 +391,30 @@ export class PDIIIFDialog extends Component {
           <DialogContentText>
             Download a PDF of the current document?
             <br />
-            {supportsFilesystemAPI && (
-              <>
-                The file will appear in the directory you choose. <br />
-              </>
-            )}
             <br />
-            {estimatedSize
-              ? ` (Estimated file size: ${formatBytes(estimatedSize)})`
-              : ""}
+            The document contains {canvasIds.length} pages{fileSizeText}. All
+            pages will be included by default. If you wish to download certain
+            portions of it, you may provide a comma separated list of pages
+            and/or ranges.
           </DialogContentText>
+          <TextField
+            id="pages"
+            label="Pages"
+            margin="normal"
+            variant="outlined"
+            placeholder="1, 4, 8-12, ..."
+            error={pageError}
+            onChange={this.handlePageChange}
+            value={this.state.indexSpec}
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={this.downloadPDF} color="primary">
+          <Button
+            onClick={this.downloadPDF}
+            className={pageError ? classes.disabledButton : ""}
+            color="primary"
+            disabled={pageError}
+          >
             Download
           </Button>
           <Button onClick={closeDialog} color="primary">
@@ -309,9 +427,11 @@ export class PDIIIFDialog extends Component {
 }
 
 PDIIIFDialog.propTypes = {
+  canvasIds: PropTypes.arrayOf(PropTypes.string),
   classes: PropTypes.shape({
     h2: PropTypes.string,
     h3: PropTypes.string,
+    disabledButton: PropTypes.string,
   }).isRequired,
   closeDialog: PropTypes.func.isRequired,
   containerId: PropTypes.string.isRequired,
@@ -325,7 +445,6 @@ PDIIIFDialog.propTypes = {
 };
 
 PDIIIFDialog.defaultProps = {
-  canvases: [],
   open: false,
 };
 
@@ -335,6 +454,9 @@ const styles = () => ({
   },
   h3: {
     marginTop: "20px",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 

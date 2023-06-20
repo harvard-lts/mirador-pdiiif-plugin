@@ -1,5 +1,5 @@
 import React from "react";
-import { render, waitFor, screen } from "@testing-library/react";
+import { render, waitFor, screen, fireEvent } from "@testing-library/react";
 import { MiradorPDIIIFDialogPlugin } from "../src";
 import "@testing-library/jest-dom";
 
@@ -7,7 +7,7 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe("PDF menu item", () => {
+describe("PDF dialog", () => {
   it("Should not render if allowPdfDownload is false ", async () => {
     render(
       <MiradorPDIIIFDialogPlugin.component
@@ -21,6 +21,7 @@ describe("PDF menu item", () => {
         manifest={{}}
         manifestId="abc123"
         allowPdfDownload={false}
+        canvasIds={["canvas1", "canvas2", "canvas3"]}
         windowId="abc123"
       />
     );
@@ -44,6 +45,7 @@ describe("PDF menu item", () => {
         manifestId="abc123"
         open={true}
         allowPdfDownload={true}
+        canvasIds={["canvas1", "canvas2", "canvas3"]}
         windowId="abc123"
       />
     );
@@ -51,5 +53,81 @@ describe("PDF menu item", () => {
     const button = screen.queryByText("Download");
     expect(title).toBeInTheDocument();
     expect(button).toBeInTheDocument();
+  });
+
+  it("Should disable download if pages aren't in range", async () => {
+    render(
+      <MiradorPDIIIFDialogPlugin.component
+        classes={{
+          h2: "h2",
+          h3: "h3",
+          disabledButton: "disabledButton",
+        }}
+        closeDialog={() => {}}
+        containerId="mirador-container"
+        estimatedSize={100000}
+        manifest={{}}
+        manifestId="abc123"
+        open={true}
+        allowPdfDownload={true}
+        canvasIds={[
+          "canvas1",
+          "canvas2",
+          "canvas3",
+          "canvas4",
+          "canvas5",
+          "canvas6",
+          "canvas7",
+          "canvas8",
+          "canvas9",
+          "canvas10",
+        ]}
+        windowId="abc123"
+      />
+    );
+    const title = screen.queryByText("PDF Download");
+    const button = screen.queryByText("Download").parentElement;
+    const input = screen.queryByPlaceholderText("1, 4, 8-12, ...");
+    fireEvent.change(input, { target: { value: "1,2,3-6,7,9-12" } });
+    expect(title).toBeInTheDocument();
+    expect(button).toBeDisabled();
+  });
+
+  it("Should allow download if pages are in range", async () => {
+    render(
+      <MiradorPDIIIFDialogPlugin.component
+        classes={{
+          h2: "h2",
+          h3: "h3",
+          disabledButton: "disabledButton",
+        }}
+        closeDialog={() => {}}
+        containerId="mirador-container"
+        estimatedSize={100000}
+        manifest={{}}
+        manifestId="abc123"
+        open={true}
+        allowPdfDownload={true}
+        canvasIds={[
+          "canvas1",
+          "canvas2",
+          "canvas3",
+          "canvas4",
+          "canvas5",
+          "canvas6",
+          "canvas7",
+          "canvas8",
+          "canvas9",
+          "canvas10",
+        ]}
+        windowId="abc123"
+      />
+    );
+    const title = screen.queryByText("PDF Download");
+    const button = screen.queryByText("Download").parentElement;
+    const input = screen.queryByPlaceholderText("1, 4, 8-12, ...");
+    fireEvent.change(input, { target: { value: "3-6,10" } });
+    expect(title).toBeInTheDocument();
+    expect(button).not.toBeDisabled();
   });
 });
