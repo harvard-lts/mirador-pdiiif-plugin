@@ -457,6 +457,10 @@ PDIIIFDialog.propTypes = {
   estimatedSize: PropTypes.number,
   manifest: PropTypes.object,
   manifestId: PropTypes.string,
+  manifestLabel: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.arrayOf(PropTypes.string),
+  ]),
   allowPdfDownload: PropTypes.bool,
   open: PropTypes.bool,
   windowId: PropTypes.string.isRequired,
