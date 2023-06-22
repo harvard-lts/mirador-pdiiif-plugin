@@ -10,7 +10,10 @@ import DialogContentText from "@material-ui/core/DialogContentText";
 import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
 import { convertManifest } from "pdiiif";
-import { getCanvases } from "mirador/dist/es/src/state/selectors";
+import {
+  getCanvases,
+  getManifestTitle,
+} from "mirador/dist/es/src/state/selectors";
 import { formatBytes, checkStreamsaverSupport } from "../utils";
 import streamSaver from "streamsaver";
 
@@ -29,6 +32,7 @@ const mapStateToProps = (state, { windowId }) => ({
   allowPdfDownload: state.PDIIIF[windowId]?.allowPdfDownload,
   canvasIds: getCanvases(state, { windowId }).map((canvas) => canvas.id),
   mitmPath: state.config.miradorPDIIIFPlugin.mitmPath,
+  manifestLabel: getManifestTitle(state, { windowId }),
 });
 
 /**
@@ -238,18 +242,33 @@ export class PDIIIFDialog extends Component {
    * @returns {Promise}
    */
   downloadPDF = async () => {
-    const { manifest } = this.props;
+    const { manifestLabel } = this.props;
     const { supportsFilesystemAPI, supportsStreamsaver } = this.state;
+
+    // This is more of a insurance against what _might_ come out of manifesto
+    // For our purposes we'd always expect a string for v2 and v3 manifests
+    let suggestedName;
+    if (typeof manifestLabel === "string") {
+      suggestedName = manifestLabel;
+    } else if (Array.isArray(manifestLabel)) {
+      suggestedName = manifestLabel;
+    } else {
+      const date = new Date();
+      suggestedName = `PDF Download ${date.getYear()}-${date.getMonth()}-${date.getDate()}`;
+    }
+
+    // Enforce character limit (arbitrary)
+    suggestedName = `${suggestedName.slice(0, 256)}.pdf`;
 
     // Ensure fresh state on each download attempt
     this.resetDownloadState();
 
     if (supportsFilesystemAPI) {
-      return await this.downloadWithFilesystemAPI(manifest.json.label);
+      return await this.downloadWithFilesystemAPI(suggestedName);
     }
 
     if (supportsStreamsaver) {
-      return await this.downloadWithStreamsaver(manifest.json.label);
+      return await this.downloadWithStreamsaver(suggestedName);
     }
   };
 
@@ -257,7 +276,7 @@ export class PDIIIFDialog extends Component {
    * Downoloads the PDF using the Filesystem API
    * @returns {Promise}
    */
-  async downloadWithFilesystemAPI(label) {
+  async downloadWithFilesystemAPI(suggestedName) {
     const { closeDialog } = this.props;
 
     // Get a writable handle to a file on the user's machine
@@ -266,7 +285,7 @@ export class PDIIIFDialog extends Component {
     // The error here will typically be a user hitting esc / cancel
     try {
       handle = await showSaveFilePicker({
-        suggestedName: `${label}.pdf`,
+        suggestedName,
         types: [
           {
             description: "PDF file",
@@ -314,10 +333,10 @@ export class PDIIIFDialog extends Component {
    * @param {string} label
    * @returns {Promise}
    */
-  async downloadWithStreamsaver(label) {
+  async downloadWithStreamsaver(suggestedName) {
     const { closeDialog } = this.props;
 
-    const webWritable = streamSaver.createWriteStream(`${label}.pdf`);
+    const webWritable = streamSaver.createWriteStream(suggestedName);
     this.setState({ webWritable: webWritable });
 
     closeDialog();
@@ -438,6 +457,10 @@ PDIIIFDialog.propTypes = {
   estimatedSize: PropTypes.number,
   manifest: PropTypes.object,
   manifestId: PropTypes.string,
+  manifestLabel: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.arrayOf(PropTypes.string),
+  ]),
   allowPdfDownload: PropTypes.bool,
   open: PropTypes.bool,
   windowId: PropTypes.string.isRequired,
