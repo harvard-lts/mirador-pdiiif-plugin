@@ -33,6 +33,7 @@ const mapStateToProps = (state, { windowId }) => ({
   canvasIds: getCanvases(state, { windowId }).map((canvas) => canvas.id),
   mitmPath: state.config.miradorPDIIIFPlugin.mitmPath,
   manifestLabel: getManifestTitle(state, { windowId }),
+  coverPageEndpoint: state.config.miradorPDIIIFPlugin.coverPageEndpoint,
 });
 
 /**
@@ -351,7 +352,7 @@ export class PDIIIFDialog extends Component {
    * @returns {Promise} (implicit)
    */
   async manifestConverter(webWritable) {
-    const { manifest } = this.props;
+    const { manifest, coverPageEndpoint } = this.props;
     const { abortController, filteredCanvasIds } = this.state;
 
     this.attachAbortListener();
@@ -363,7 +364,8 @@ export class PDIIIFDialog extends Component {
       maxWidth: 1500,
       abortController,
       filterCanvases: filteredCanvasIds,
-      coverPageEndpoint: "https://pdiiif.jbaiter.de/api/coverpage",
+      coverPageEndpoint:
+        coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
     });
 
     this.setState({ isDownloading: false });
@@ -454,6 +456,7 @@ PDIIIFDialog.propTypes = {
   }).isRequired,
   closeDialog: PropTypes.func.isRequired,
   containerId: PropTypes.string.isRequired,
+  coverPageEndpoint: PropTypes.string,
   estimatedSize: PropTypes.number,
   manifest: PropTypes.object,
   manifestId: PropTypes.string,
