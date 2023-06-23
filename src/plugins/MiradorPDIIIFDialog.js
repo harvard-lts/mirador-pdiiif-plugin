@@ -258,7 +258,7 @@ export class PDIIIFDialog extends Component {
     }
 
     // Enforce character limit (arbitrary)
-    suggestedName = `${suggestedName.slice(0, 256)}.pdf`;
+    suggestedName = `${suggestedName.slice(0, 128)}.pdf`;
 
     // Ensure fresh state on each download attempt
     this.resetDownloadState();
