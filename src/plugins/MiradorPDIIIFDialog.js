@@ -278,16 +278,21 @@ export class PDIIIFDialog extends Component {
 
     if (isDownloading || progress === 100) {
       return (
-        <>
-          <Typography
-            className={classes.progressLabel}
-            variant="body2"
-            color="textSecondary"
-          >
+        <div className={classes.progressContainer}>
+          <Typography variant="body2" color="textSecondary">
             Download progress:
           </Typography>
-          <LinearProgress variant="determinate" value={progress} />
-        </>
+          <Box display="flex" alignItems="center">
+            <Box width="100%" mr={1}>
+              <LinearProgress variant="determinate" value={progress} />
+            </Box>
+            <Box minWidth={35}>
+              <Typography variant="body2" color="textSecondary">
+                {progress}%
+              </Typography>
+            </Box>
+          </Box>
+        </div>
       );
     }
 
@@ -543,8 +548,8 @@ const styles = () => ({
   h2: {
     paddingBottom: 0,
   },
-  progressLabel: {
-    marginBottom: "10px",
+  progressContainer: {
+    marginTop: "10px",
   },
   h3: {
     marginTop: "20px",
