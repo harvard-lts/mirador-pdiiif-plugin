@@ -496,6 +496,7 @@ export class PDIIIFDialog extends Component {
             error={pageError}
             onChange={this.handlePageChange}
             value={this.state.indexSpec}
+            disabled={isDownloading}
           />
           {this.renderProgress()}
         </DialogContent>
