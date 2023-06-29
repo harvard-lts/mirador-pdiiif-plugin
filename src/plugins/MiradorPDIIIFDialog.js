@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { withStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import Dialog from "@material-ui/core/Dialog";
+import LinearProgress from "@material-ui/core/LinearProgress";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import DialogContent from "@material-ui/core/DialogContent";
@@ -63,6 +64,7 @@ export class PDIIIFDialog extends Component {
       indexSpec: "",
       pageError: false,
       filteredCanvasIds: undefined, // Undefined will trigger all pages
+      progress: 0,
     };
   }
 
@@ -278,8 +280,6 @@ export class PDIIIFDialog extends Component {
    * @returns {Promise}
    */
   async downloadWithFilesystemAPI(suggestedName) {
-    const { closeDialog } = this.props;
-
     // Get a writable handle to a file on the user's machine
     let handle;
 
@@ -315,8 +315,6 @@ export class PDIIIFDialog extends Component {
 
         this.setState({ webWritable: webWritable });
 
-        closeDialog();
-
         // Start the PDF generation
         return await this.manifestConverter(webWritable);
       }
@@ -335,12 +333,8 @@ export class PDIIIFDialog extends Component {
    * @returns {Promise}
    */
   async downloadWithStreamsaver(suggestedName) {
-    const { closeDialog } = this.props;
-
     const webWritable = streamSaver.createWriteStream(suggestedName);
     this.setState({ webWritable: webWritable });
-
-    closeDialog();
 
     // Start the PDF generation
     return await this.manifestConverter(webWritable);
@@ -358,15 +352,26 @@ export class PDIIIFDialog extends Component {
     this.attachAbortListener();
 
     this.setState({ isDownloading: true });
-
-    await convertManifest(manifest.json, webWritable, {
-      concurrency: 4,
-      maxWidth: 1500,
-      abortController,
-      filterCanvases: filteredCanvasIds,
-      coverPageEndpoint:
-        coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
-    });
+    try {
+      await convertManifest(manifest.json, webWritable, {
+        concurrency: 4,
+        maxWidth: 1500,
+        abortController,
+        filterCanvases: filteredCanvasIds,
+        coverPageEndpoint:
+          coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
+        onProgress: (status) => {
+          this.setState({
+            progress: Math.round(
+              (status.pagesWritten / status.totalPages) * 100
+            ),
+          });
+        },
+      });
+    } catch (e) {
+      this.setState({ savingError: e.message });
+      console.error(e);
+    }
 
     this.setState({ isDownloading: false });
   }
@@ -375,7 +380,7 @@ export class PDIIIFDialog extends Component {
    * Returns the rendered component
    */
   render() {
-    const { savingError, pageError } = this.state;
+    const { savingError, pageError, progress } = this.state;
     const {
       classes,
       closeDialog,
@@ -428,6 +433,16 @@ export class PDIIIFDialog extends Component {
             onChange={this.handlePageChange}
             value={this.state.indexSpec}
           />
+          <div>
+            <Typography
+              className={classes.progressLabel}
+              variant="body2"
+              color="textSecondary"
+            >
+              Download progress:
+            </Typography>
+            <LinearProgress variant="determinate" value={progress} />
+          </div>
         </DialogContent>
         <DialogActions>
           <Button
@@ -477,6 +492,9 @@ PDIIIFDialog.defaultProps = {
 const styles = () => ({
   h2: {
     paddingBottom: 0,
+  },
+  progressLabel: {
+    marginBottom: "10px",
   },
   h3: {
     marginTop: "20px",
