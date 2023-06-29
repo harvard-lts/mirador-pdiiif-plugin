@@ -10,6 +10,7 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
+import Box from "@material-ui/core/Box";
 import { convertManifest } from "pdiiif";
 import {
   getCanvases,
@@ -146,12 +147,17 @@ export class PDIIIFDialog extends Component {
     const { isDownloading, webWritable } = this.state;
     const { open } = this.props;
 
-    // If the dialog was closed and re-opened, reset the input state
     if (!prevProps.open && open) {
-      this.setState({ indexSpec: "" });
-      this.setState({
-        filteredCanvasIds: undefined,
-      });
+      // Opening / closing the modal while a download is _not_ in progress is the ideal cleanup time
+      if (!isDownloading) {
+        this.setState({
+          indexSpec: "",
+          filteredCanvasIds: undefined,
+          pageError: false,
+        });
+
+        this.resetDownloadState();
+      }
     }
 
     if (
@@ -256,6 +262,36 @@ export class PDIIIFDialog extends Component {
         progress: Math.round((status.pagesWritten / status.totalPages) * 100),
       });
     }
+  };
+
+  /**
+   * Renders the progress bar
+   * @returns {ReactElement|null}
+   */
+  renderProgress = () => {
+    const { classes } = this.props;
+    const { progress, isDownloading } = this.state;
+
+    // Cases for showing progress bar:
+    // 1. Download is in progress (but potentially at 0%)
+    // 2. Not downloading, but progress is 100% (i.e. download is complete and we want the user to see it)
+
+    if (isDownloading || progress === 100) {
+      return (
+        <>
+          <Typography
+            className={classes.progressLabel}
+            variant="body2"
+            color="textSecondary"
+          >
+            Download progress:
+          </Typography>
+          <LinearProgress variant="determinate" value={progress} />
+        </>
+      );
+    }
+
+    return null;
   };
 
   /**
@@ -403,7 +439,7 @@ export class PDIIIFDialog extends Component {
    * Returns the rendered component
    */
   render() {
-    const { savingError, pageError, progress, isDownloading } = this.state;
+    const { savingError, pageError, isDownloading } = this.state;
     const {
       classes,
       closeDialog,
@@ -456,16 +492,7 @@ export class PDIIIFDialog extends Component {
             onChange={this.handlePageChange}
             value={this.state.indexSpec}
           />
-          <div>
-            <Typography
-              className={classes.progressLabel}
-              variant="body2"
-              color="textSecondary"
-            >
-              Download progress:
-            </Typography>
-            <LinearProgress variant="determinate" value={progress} />
-          </div>
+          {this.renderProgress()}
         </DialogContent>
         <DialogActions>
           <Button
