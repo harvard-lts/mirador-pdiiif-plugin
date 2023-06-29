@@ -214,9 +214,12 @@ export class PDIIIFDialog extends Component {
   resetDownloadState = () => {
     // Cancelling or aborting will always need clear up the state
     // In particular a new AbortController needs to be created
-    this.setState({ webWritable: null });
-    this.setState({ isDownloading: false });
-    this.setState({ abortController: new AbortController() });
+    this.setState({
+      webWritable: null,
+      isDownloading: false,
+      progress: 0,
+      abortController: new AbortController(),
+    });
   };
 
   /**
@@ -238,6 +241,32 @@ export class PDIIIFDialog extends Component {
       },
       { once: true }
     );
+  };
+
+  /**
+   * Updates the progress state
+   * @param {Object} status - onProgress status object from PDIIIF
+   */
+  updateProgress = (status) => {
+    const { isDownloading } = this.state;
+
+    // When cancelled, sometimes this returns one last time
+    if (isDownloading) {
+      this.setState({
+        progress: Math.round((status.pagesWritten / status.totalPages) * 100),
+      });
+    }
+  };
+
+  /**
+   * Cancels the download
+   */
+  cancelDownload = () => {
+    const { abortController } = this.state;
+
+    abortController.abort();
+
+    this.resetDownloadState();
   };
 
   /**
@@ -351,36 +380,30 @@ export class PDIIIFDialog extends Component {
 
     this.attachAbortListener();
 
-    this.setState({ isDownloading: true });
-    try {
-      await convertManifest(manifest.json, webWritable, {
-        concurrency: 4,
-        maxWidth: 1500,
-        abortController,
-        filterCanvases: filteredCanvasIds,
-        coverPageEndpoint:
-          coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
-        onProgress: (status) => {
-          this.setState({
-            progress: Math.round(
-              (status.pagesWritten / status.totalPages) * 100
-            ),
-          });
-        },
-      });
-    } catch (e) {
-      this.setState({ savingError: e.message });
-      console.error(e);
-    }
-
-    this.setState({ isDownloading: false });
+    this.setState({ isDownloading: true }, async () => {
+      try {
+        await convertManifest(manifest.json, webWritable, {
+          concurrency: 4,
+          maxWidth: 1500,
+          abortController,
+          filterCanvases: filteredCanvasIds,
+          coverPageEndpoint:
+            coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
+          onProgress: this.updateProgress,
+        });
+      } catch (e) {
+        this.setState({ savingError: e.message });
+        console.error(e);
+      }
+      this.setState({ isDownloading: false });
+    });
   }
 
   /**
    * Returns the rendered component
    */
   render() {
-    const { savingError, pageError, progress } = this.state;
+    const { savingError, pageError, progress, isDownloading } = this.state;
     const {
       classes,
       closeDialog,
@@ -446,12 +469,12 @@ export class PDIIIFDialog extends Component {
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={this.downloadPDF}
+            onClick={isDownloading ? this.cancelDownload : this.downloadPDF}
             className={pageError ? classes.disabledButton : ""}
             color="primary"
             disabled={pageError}
           >
-            Download
+            {isDownloading ? "Cancel" : "Download"}
           </Button>
           <Button onClick={closeDialog} color="primary">
             Close
