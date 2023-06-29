@@ -444,7 +444,7 @@ export class PDIIIFDialog extends Component {
    * Returns the rendered component
    */
   render() {
-    const { savingError, pageError, isDownloading } = this.state;
+    const { savingError, pageError, isDownloading, progress } = this.state;
     const {
       classes,
       closeDialog,
@@ -503,11 +503,21 @@ export class PDIIIFDialog extends Component {
         <DialogActions>
           <Button
             onClick={isDownloading ? this.cancelDownload : this.downloadPDF}
-            className={pageError ? classes.disabledButton : ""}
+            className={
+              pageError || progress === 100 ? classes.disabledButton : ""
+            }
             color="primary"
-            disabled={pageError}
+            disabled={pageError || progress === 100}
           >
-            {isDownloading ? "Cancel" : "Download"}
+            {(() => {
+              if (progress === 100) {
+                return "Done";
+              } else if (isDownloading) {
+                return "Cancel";
+              } else {
+                return "Download";
+              }
+            })()}
           </Button>
           <Button onClick={closeDialog} color="primary">
             Close
