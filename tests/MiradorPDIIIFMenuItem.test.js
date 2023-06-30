@@ -1,11 +1,14 @@
 import React from "react";
 import { render, waitFor } from "@testing-library/react";
 import { MiradorPDIIIFMenuItemPlugin } from "../src";
-import "@testing-library/jest-dom";
+import { setupServer } from "msw/node";
+import { handlers } from "../__mocks__/handlers";
 
-beforeEach(() => {
-  jest.clearAllMocks();
-});
+const server = setupServer(...handlers);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 describe("PDF menu item", () => {
   it("Should should display 'Download PDF' allowPdfDownload is true", async () => {

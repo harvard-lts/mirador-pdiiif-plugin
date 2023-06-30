@@ -1,0 +1,47 @@
+{
+  "@context": "http://iiif.io/api/image/2/context.json",
+  "@id": "https://ids.lib.harvard.edu/ids/iiif/4997393",
+  "protocol": "http://iiif.io/api/image",
+  "width": 1599,
+  "height": 2222,
+  "sizes": [
+    { "width": 100, "height": 139 },
+    { "width": 200, "height": 278 },
+    { "width": 400, "height": 556 },
+    { "width": 800, "height": 1111 },
+    { "width": 1599, "height": 2222 }
+  ],
+  "tiles": [
+    { "width": 1024, "height": 1024, "scaleFactors": [1, 2, 4, 8, 16] }
+  ],
+  "profile": [
+    "http://iiif.io/api/image/2/level2.json",
+    {
+      "formats": ["tif", "jpg", "gif", "png"],
+      "qualities": ["bitonal", "default", "gray", "color"],
+      "supports": [
+        "regionByPx",
+        "sizeByW",
+        "sizeByWhListed",
+        "cors",
+        "regionSquare",
+        "sizeByDistortedWh",
+        "canonicalLinkHeader",
+        "sizeByConfinedWh",
+        "sizeByPct",
+        "jsonldMediaType",
+        "regionByPct",
+        "rotationArbitrary",
+        "sizeByH",
+        "baseUriRedirect",
+        "rotationBy90s",
+        "profileLinkHeader",
+        "sizeByForcedWh",
+        "sizeByWh",
+        "mirroring"
+      ]
+    }
+  ],
+  "maxWidth": 1599,
+  "maxHeight": 2222
+}

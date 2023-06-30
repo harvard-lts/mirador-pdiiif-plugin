@@ -3,12 +3,14 @@ import PropTypes from "prop-types";
 import { withStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import Dialog from "@material-ui/core/Dialog";
+import LinearProgress from "@material-ui/core/LinearProgress";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
+import Box from "@material-ui/core/Box";
 import { convertManifest } from "pdiiif";
 import {
   getCanvases,
@@ -63,6 +65,7 @@ export class PDIIIFDialog extends Component {
       indexSpec: "",
       pageError: false,
       filteredCanvasIds: undefined, // Undefined will trigger all pages
+      progress: 0,
     };
   }
 
@@ -144,12 +147,17 @@ export class PDIIIFDialog extends Component {
     const { isDownloading, webWritable } = this.state;
     const { open } = this.props;
 
-    // If the dialog was closed and re-opened, reset the input state
     if (!prevProps.open && open) {
-      this.setState({ indexSpec: "" });
-      this.setState({
-        filteredCanvasIds: undefined,
-      });
+      // Opening / closing the modal while a download is _not_ in progress is the ideal cleanup time
+      if (!isDownloading) {
+        this.setState({
+          indexSpec: "",
+          filteredCanvasIds: undefined,
+          pageError: false,
+        });
+
+        this.resetDownloadState();
+      }
     }
 
     if (
@@ -212,9 +220,12 @@ export class PDIIIFDialog extends Component {
   resetDownloadState = () => {
     // Cancelling or aborting will always need clear up the state
     // In particular a new AbortController needs to be created
-    this.setState({ webWritable: null });
-    this.setState({ isDownloading: false });
-    this.setState({ abortController: new AbortController() });
+    this.setState({
+      webWritable: null,
+      isDownloading: false,
+      progress: 0,
+      abortController: new AbortController(),
+    });
   };
 
   /**
@@ -236,6 +247,67 @@ export class PDIIIFDialog extends Component {
       },
       { once: true }
     );
+  };
+
+  /**
+   * Updates the progress state
+   * @param {Object} status - onProgress status object from PDIIIF
+   */
+  updateProgress = (status) => {
+    const { isDownloading } = this.state;
+
+    // When cancelled, sometimes this returns one last time
+    if (isDownloading) {
+      this.setState({
+        progress: Math.round((status.pagesWritten / status.totalPages) * 100),
+      });
+    }
+  };
+
+  /**
+   * Renders the progress bar
+   * @returns {ReactElement|null}
+   */
+  renderProgress = () => {
+    const { classes } = this.props;
+    const { progress, isDownloading } = this.state;
+
+    // Cases for showing progress bar:
+    // 1. Download is in progress (but potentially at 0%)
+    // 2. Not downloading, but progress is 100% (i.e. download is complete and we want the user to see it)
+
+    if (isDownloading || progress === 100) {
+      return (
+        <div className={classes.progressContainer}>
+          <Typography variant="body2" color="textSecondary">
+            Download progress:
+          </Typography>
+          <Box display="flex" alignItems="center">
+            <Box width="100%" mr={1}>
+              <LinearProgress variant="determinate" value={progress} />
+            </Box>
+            <Box minWidth={35}>
+              <Typography variant="body2" color="textSecondary">
+                {progress}%
+              </Typography>
+            </Box>
+          </Box>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  /**
+   * Cancels the download
+   */
+  cancelDownload = () => {
+    const { abortController } = this.state;
+
+    abortController.abort();
+
+    this.resetDownloadState();
   };
 
   /**
@@ -278,8 +350,6 @@ export class PDIIIFDialog extends Component {
    * @returns {Promise}
    */
   async downloadWithFilesystemAPI(suggestedName) {
-    const { closeDialog } = this.props;
-
     // Get a writable handle to a file on the user's machine
     let handle;
 
@@ -315,8 +385,6 @@ export class PDIIIFDialog extends Component {
 
         this.setState({ webWritable: webWritable });
 
-        closeDialog();
-
         // Start the PDF generation
         return await this.manifestConverter(webWritable);
       }
@@ -335,12 +403,8 @@ export class PDIIIFDialog extends Component {
    * @returns {Promise}
    */
   async downloadWithStreamsaver(suggestedName) {
-    const { closeDialog } = this.props;
-
     const webWritable = streamSaver.createWriteStream(suggestedName);
     this.setState({ webWritable: webWritable });
-
-    closeDialog();
 
     // Start the PDF generation
     return await this.manifestConverter(webWritable);
@@ -357,25 +421,30 @@ export class PDIIIFDialog extends Component {
 
     this.attachAbortListener();
 
-    this.setState({ isDownloading: true });
-
-    await convertManifest(manifest.json, webWritable, {
-      concurrency: 4,
-      maxWidth: 1500,
-      abortController,
-      filterCanvases: filteredCanvasIds,
-      coverPageEndpoint:
-        coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
+    this.setState({ isDownloading: true }, async () => {
+      try {
+        await convertManifest(manifest.json, webWritable, {
+          concurrency: 4,
+          maxWidth: 1500,
+          abortController,
+          filterCanvases: filteredCanvasIds,
+          coverPageEndpoint:
+            coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
+          onProgress: this.updateProgress,
+        });
+      } catch (e) {
+        this.setState({ savingError: e.message });
+        console.error(e);
+      }
+      this.setState({ isDownloading: false });
     });
-
-    this.setState({ isDownloading: false });
   }
 
   /**
    * Returns the rendered component
    */
   render() {
-    const { savingError, pageError } = this.state;
+    const { savingError, pageError, isDownloading, progress } = this.state;
     const {
       classes,
       closeDialog,
@@ -427,16 +496,28 @@ export class PDIIIFDialog extends Component {
             error={pageError}
             onChange={this.handlePageChange}
             value={this.state.indexSpec}
+            disabled={isDownloading}
           />
+          {this.renderProgress()}
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={this.downloadPDF}
-            className={pageError ? classes.disabledButton : ""}
+            onClick={isDownloading ? this.cancelDownload : this.downloadPDF}
+            className={
+              pageError || progress === 100 ? classes.disabledButton : ""
+            }
             color="primary"
-            disabled={pageError}
+            disabled={pageError || progress === 100}
           >
-            Download
+            {(() => {
+              if (progress === 100) {
+                return "Done";
+              } else if (isDownloading) {
+                return "Cancel";
+              } else {
+                return "Download";
+              }
+            })()}
           </Button>
           <Button onClick={closeDialog} color="primary">
             Close
@@ -477,6 +558,9 @@ PDIIIFDialog.defaultProps = {
 const styles = () => ({
   h2: {
     paddingBottom: 0,
+  },
+  progressContainer: {
+    marginTop: "10px",
   },
   h3: {
     marginTop: "20px",
