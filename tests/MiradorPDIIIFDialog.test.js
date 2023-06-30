@@ -1,11 +1,14 @@
 import React from "react";
 import { render, waitFor, screen, fireEvent } from "@testing-library/react";
 import { MiradorPDIIIFDialogPlugin } from "../src";
-import "@testing-library/jest-dom";
+import { setupServer } from "msw/node";
+import { handlers } from "../__mocks__/handlers";
 
-beforeEach(() => {
-  jest.clearAllMocks();
-});
+const server = setupServer(...handlers);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 describe("PDF dialog", () => {
   it("Should not render if allowPdfDownload is false ", async () => {
