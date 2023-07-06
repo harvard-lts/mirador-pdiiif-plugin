@@ -1,22 +1,23 @@
 const path = require("path");
+const webpack = require("webpack");
 
 module.exports = (env, options) => {
   return {
     mode: options.mode,
-    entry: "./src/index.js",
+    entry: "./demo/demoEntry.js",
     output: {
-      path: path.resolve(__dirname, "dist"),
-      filename: "MiradorPDIIIFPlugin.min.js",
+      path: path.resolve(__dirname, "demo", "dist"),
+      filename: "demo.js",
       publicPath: "/",
-      library: {
-        name: "MiradorPDIIIFPlugin",
-        type: "umd",
-        export: "default",
-      },
     },
     resolve: {
       extensions: [".js", ".jsx"],
     },
+    plugins: [
+      new webpack.IgnorePlugin({
+        resourceRegExp: /@blueprintjs\/(core|icons)/, // ignore optional UI framework dependencies
+      }),
+    ],
     module: {
       rules: [
         {
@@ -30,6 +31,22 @@ module.exports = (env, options) => {
           },
         },
       ],
+    },
+    devServer: {
+      static: [
+        {
+          directory: path.join(__dirname, "demo"),
+        },
+        {
+          directory: path.join(__dirname, "demo", "dist"),
+        },
+      ],
+      compress: true,
+      port: 9000,
+      historyApiFallback: true,
+      client: {
+        overlay: false,
+      },
     },
   };
 };

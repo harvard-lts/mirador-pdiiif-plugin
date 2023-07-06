@@ -7,7 +7,6 @@
   ],
   "version": "0.1.22",
   "description": "mirador-pdiiif-plugin React component",
-  "main": "dist/MiradorPDIIIFPlugin.min.js",
   "module": "dist/es/index.js",
   "files": [
     "dist"
@@ -20,6 +19,7 @@
     "build:es": "mkdir -p dist/es && cp -r src/* dist/es && NODE_ENV=production MODULE_FORMAT=es babel dist/es -d dist/es",
     "webpack": "webpack --mode production",
     "webpack:dev": "webpack --mode development",
+    "serve": "webpack serve --mode development --open",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch"
