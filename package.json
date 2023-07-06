@@ -12,13 +12,11 @@
     "dist"
   ],
   "scripts": {
-    "clean": "rm -rf ./dist",
+    "clean": "rm -rf ./dist && rm -rf ./demo/dist",
     "prebuild": "npm run clean",
     "prepublishOnly": "npm run build",
-    "build": "run-p webpack build:es",
+    "build": "npm run build:es",
     "build:es": "mkdir -p dist/es && cp -r src/* dist/es && NODE_ENV=production MODULE_FORMAT=es babel dist/es -d dist/es",
-    "webpack": "webpack --mode production",
-    "webpack:dev": "webpack --mode development",
     "serve": "webpack serve --mode development --open",
     "test": "jest",
     "test:coverage": "jest --coverage",
