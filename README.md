@@ -16,12 +16,12 @@ Mirador plugin for PDIIIF. Currently intended for use with the Harvard implement
 
 The following are some useful scripts can be ran using `npm run <script>`. A full list can be seen in [package.json](./package.json)
 
-| Script  | Description                                                                          |
-| ------- | ------------------------------------------------------------------------------------ |
-| `clean` | Removes the `dist` directories                                                       |
-| `build` | Builds the source files into the `./dist` directory                                  |
-| `serve` | Runs a local web server where the plugin can be viewed in a vanilla Mirador instance |
-| `test`  | Runs the automated test suites                                                       |
+| Script  | Description                                                                                                                |
+| ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `clean` | Removes the `dist` directories                                                                                             |
+| `build` | Builds the source files into the `./dist` directory                                                                        |
+| `serve` | Runs a local web server where the plugin can be viewed in a vanilla Mirador instance (helpful for testing and development) |
+| `test`  | Runs the automated test suites                                                                                             |
 
 ## Publishing to NPM
 
