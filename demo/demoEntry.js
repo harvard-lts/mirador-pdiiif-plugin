@@ -1,5 +1,5 @@
 import Mirador from "mirador/dist/es/src/index";
-import MiradorPDIIIFPlugin from "../src/index";
+import Plugin from "../src/index";
 
 document.addEventListener("DOMContentLoaded", () => {
   const config = {
@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ],
   };
 
-  const plugins = [...MiradorPDIIIFPlugin];
+  const plugins = [...Plugin];
 
   Mirador.viewer(config, plugins);
 });
