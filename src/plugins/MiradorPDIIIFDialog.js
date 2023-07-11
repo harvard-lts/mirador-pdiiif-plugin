@@ -33,9 +33,9 @@ const mapStateToProps = (state, { windowId }) => ({
   estimatedSize: state.PDIIIF[windowId]?.estimatedSizeInBytes,
   allowPdfDownload: state.PDIIIF[windowId]?.allowPdfDownload,
   canvasIds: getCanvases(state, { windowId }).map((canvas) => canvas.id),
-  mitmPath: state.config.miradorPDIIIFPlugin.mitmPath,
+  mitmPath: state.config.miradorPDIIIFPlugin?.mitmPath,
   manifestLabel: getManifestTitle(state, { windowId }),
-  coverPageEndpoint: state.config.miradorPDIIIFPlugin.coverPageEndpoint,
+  coverPageEndpoint: state.config.miradorPDIIIFPlugin?.coverPageEndpoint,
 });
 
 /**
