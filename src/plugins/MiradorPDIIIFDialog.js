@@ -428,8 +428,7 @@ export class PDIIIFDialog extends Component {
           maxWidth: 1500,
           abortController,
           filterCanvases: filteredCanvasIds,
-          coverPageEndpoint:
-            coverPageEndpoint ?? "https://pdiiif.jbaiter.de/api/coverpage",
+          coverPageEndpoint: coverPageEndpoint ?? "",
           onProgress: this.updateProgress,
         });
       } catch (e) {
