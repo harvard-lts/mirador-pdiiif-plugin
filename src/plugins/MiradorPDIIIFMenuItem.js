@@ -44,11 +44,21 @@ const PDIIIFReducer = (state = {}, action) => {
     };
   }
   if (action.type === "PDIIIF/SET_ESTIMATED_SIZE") {
+    var estimatedSizeInBytes = action.size;
+    if (
+      typeof action.size === 'object' &&
+      !Array.isArray(action.size) &&
+      action.size !== null
+    ) {
+        if ('size' in action.size) {
+          estimatedSizeInBytes = action.size.size;
+        }
+    }
     return {
       ...state,
       [action.windowId]: {
         ...state[action.windowId],
-        estimatedSizeInBytes: action.size,
+        estimatedSizeInBytes: estimatedSizeInBytes,
       },
     };
   }
