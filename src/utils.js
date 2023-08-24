@@ -48,3 +48,23 @@ export async function checkImageApiHasCors() {
     return false;
   }
 }
+
+/**
+ * Check image type
+ * @param {canvasJSON} object the canvas JSON object
+ * @returns {boolean} true if image is of format image/jpeg
+ */
+export async function checkImageType(canvasJSON) {
+  if ('images' in canvasJSON[0]) {
+    // v2 Manifest
+    let format = canvasJSON[0].images[0].resource.format;
+    console.log('format v2: '+format);
+    return format == 'image/jpeg' ? true : false;
+  }
+  else {
+    // v3 Manifest
+    let format = canvasJSON[0].items[0].items[0].body.format;
+    console.log('format v3: '+format);
+    return format == 'image/jpeg' ? true : false;
+  }
+}

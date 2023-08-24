@@ -5,9 +5,9 @@ import ListItemText from "@material-ui/core/ListItemText";
 import MenuItem from "@material-ui/core/MenuItem";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { withStyles } from "@material-ui/core/styles";
-import { getCanvasGroupings } from "mirador/dist/es/src/state/selectors";
+import { getCanvases, getCanvasGroupings } from "mirador/dist/es/src/state/selectors";
 import { estimatePdfSize } from "pdiiif";
-import { checkImageApiHasCors, checkStreamsaverSupport } from "../utils";
+import { checkImageApiHasCors, checkStreamsaverSupport, checkImageType } from "../utils";
 
 // select an icon from material icons to import and use: https://v4.mui.com/components/material-icons/
 import PDFIcon from "@material-ui/icons/PictureAsPdf";
@@ -68,6 +68,7 @@ const PDIIIFReducer = (state = {}, action) => {
 const mapStateToProps = (state, { windowId }) => ({
   manifest: state.manifests[state.windows[windowId].manifestId],
   canvasGroupings: getCanvasGroupings(state, { windowId }),
+  canvasJSON: getCanvases(state, { windowId }).map((canvas) => canvas.__jsonld),
   allowPdfDownload: state.PDIIIF[windowId]?.PDFDownloadEnabled ?? false,
 });
 
@@ -88,6 +89,7 @@ class PDIIIFMenuItem extends Component {
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
       supportsStreamsaver: checkStreamsaverSupport(),
       imageApiHasCors: checkImageApiHasCors(),
+      imageType: checkImageType(props.canvasJSON),
     };
   }
 
@@ -106,7 +108,7 @@ class PDIIIFMenuItem extends Component {
       allowPdfDownload,
       setEstimatedSize,
     } = this.props;
-    const { supportsFilesystemAPI, supportsStreamsaver, imageApiHasCors } =
+    const { supportsFilesystemAPI, supportsStreamsaver, imageApiHasCors, checkImageType } =
       this.state;
 
     // If already allowed, don't check again
@@ -115,7 +117,8 @@ class PDIIIFMenuItem extends Component {
     if (
       allowPdfDownload ||
       (!supportsFilesystemAPI && !supportsStreamsaver) ||
-      !imageApiHasCors
+      !imageApiHasCors ||
+      checkImageType
     ) {
       this.setState({ hasChecked: true });
       return;
@@ -185,6 +188,7 @@ class PDIIIFMenuItem extends Component {
 PDIIIFMenuItem.propTypes = {
   allowPdfDownload: PropTypes.bool,
   canvasGroupings: PropTypes.array.isRequired,
+  canvasJSON: PropTypes.array.isRequired,
   handleClose: PropTypes.func,
   openPDIIIFDialog: PropTypes.func,
   manifest: PropTypes.object.isRequired,
