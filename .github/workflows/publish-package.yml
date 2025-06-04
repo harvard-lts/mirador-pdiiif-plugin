@@ -5,8 +5,7 @@ on:
 
 jobs:
   publish:
-    runs-on:
-      group: huit-arc
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
