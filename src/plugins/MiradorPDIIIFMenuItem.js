@@ -122,8 +122,14 @@ class PDIIIFMenuItem extends Component {
     }
 
     if (!manifest?.error && manifest?.json) {
+      let isPTO = false;
+      if (manifest.json.structures && manifest.json.structures.length > 0) {
+        if (manifest.json.structures[0]['@type'] == 'sc:Range' || manifest.json.structures[0].type == 'Range') {
+          isPTO = true;
+        }
+      }
       // Only show PDF's for PTO's
-      if (canvasGroupings.length > 1) {
+      if (isPTO) {
         // Check size can be estimated
         const estimatedSizeInBytes = await estimatePdfSize({
           manifest: manifest.json,
