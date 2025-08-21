@@ -5,7 +5,6 @@ import ListItemText from "@material-ui/core/ListItemText";
 import MenuItem from "@material-ui/core/MenuItem";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { withStyles } from "@material-ui/core/styles";
-import { getCanvasGroupings } from "mirador/dist/es/src/state/selectors";
 import { estimatePdfSize } from "pdiiif";
 import { checkImageApiHasCors, checkStreamsaverSupport } from "../utils";
 
@@ -67,7 +66,6 @@ const PDIIIFReducer = (state = {}, action) => {
 
 const mapStateToProps = (state, { windowId }) => ({
   manifest: state.manifests[state.windows[windowId].manifestId],
-  canvasGroupings: getCanvasGroupings(state, { windowId }),
   allowPdfDownload: state.PDIIIF[windowId]?.PDFDownloadEnabled ?? false,
 });
 
@@ -101,7 +99,6 @@ class PDIIIFMenuItem extends Component {
   async componentDidMount() {
     const {
       manifest,
-      canvasGroupings,
       setAllowPdfDownload,
       allowPdfDownload,
       setEstimatedSize,
@@ -122,8 +119,14 @@ class PDIIIFMenuItem extends Component {
     }
 
     if (!manifest?.error && manifest?.json) {
+      let isPTO = false;
+      if (manifest.json.structures && manifest.json.structures.length > 0) {
+        if (manifest.json.structures[0]['@type'] == 'sc:Range' || manifest.json.structures[0].type == 'Range') {
+          isPTO = true;
+        }
+      }
       // Only show PDF's for PTO's
-      if (canvasGroupings.length > 1) {
+      if (isPTO) {
         // Check size can be estimated
         const estimatedSizeInBytes = await estimatePdfSize({
           manifest: manifest.json,
@@ -184,7 +187,6 @@ class PDIIIFMenuItem extends Component {
 
 PDIIIFMenuItem.propTypes = {
   allowPdfDownload: PropTypes.bool,
-  canvasGroupings: PropTypes.array.isRequired,
   handleClose: PropTypes.func,
   openPDIIIFDialog: PropTypes.func,
   manifest: PropTypes.object.isRequired,
