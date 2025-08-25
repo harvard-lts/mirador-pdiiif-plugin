@@ -41,7 +41,13 @@ export function checkStreamsaverSupport() {
  */
 export async function checkImageApiHasCors() {
   try {
-    let testImgResp = await fetch(images[0]["@id"] ?? images[0].id);
+    let testImgResp = await fetch(
+      images[0]["@id"] ?? images[0].id,
+      {
+        method: 'get', 
+        credentials: 'include',
+      }
+    );
     let testImgData = new Uint8Array(await testImgResp.arrayBuffer());
     return testImgData[0] !== undefined ? true : false;
   } catch {

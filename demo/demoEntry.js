@@ -14,6 +14,9 @@ document.addEventListener("DOMContentLoaded", () => {
       {
         manifestId: "https://nrs.harvard.edu/URN-3:FHCL.LOEB:25853480:MANIFEST:3",
       },
+      {
+        manifestId: "https://nrs.harvard.edu/URN-3:FHCL.HOUGH:1276220:MANIFEST:3",
+      },
     ],
   };
 
