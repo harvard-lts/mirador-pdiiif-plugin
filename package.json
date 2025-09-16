@@ -20,8 +20,7 @@
     "serve": "webpack serve --mode development --open",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:watch": "jest --watch",
-    "postinstall": "patch-package"
+    "test:watch": "jest --watch"
   },
   "devDependencies": {
     "@babel/cli": "^7.26.4",
@@ -50,8 +49,7 @@
   "dependencies": {
     "@material-ui/core": "^4.12.3",
     "@material-ui/icons": "^4.11.2",
-    "patch-package": "^8.0.0",
-    "pdiiif": "^0.2.5",
+    "pdiiif": "file:../pdiiif/pdiiif-lib",
     "prop-types": "^15.8.1",
     "react": "^16.14.0",
     "react-dom": "^16.14.0",
