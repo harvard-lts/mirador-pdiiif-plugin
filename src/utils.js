@@ -48,3 +48,52 @@ export async function checkImageApiHasCors() {
     return false;
   }
 }
+
+/**
+ * Check Object Public
+ * @param {Object} manifest - The IIIF manifest object
+ * @returns {boolean} true if object is public
+ */
+export async function checkObjectPublic(manifest) {
+  console.log('CHECKING IF OBJECT IS PUBLIC!!!!');
+  try {
+    // Get the first canvas from the manifest
+    if (!manifest || !manifest.items || manifest.items.length === 0) {
+      console.log('No items found in manifest, returning false');
+      return false;
+    }
+    
+    const firstCanvas = manifest.items[0];
+    if (!firstCanvas.items || firstCanvas.items.length === 0) {
+      console.log('No items found in first canvas, returning false');
+      return false;
+    }
+    
+    const firstAnnotationPage = firstCanvas.items[0];
+    if (!firstAnnotationPage.items || firstAnnotationPage.items.length === 0) {
+      console.log('No items found in first annotation page, returning false');
+      return false;
+    }
+    
+    const firstAnnotation = firstAnnotationPage.items[0];
+    const imageUrl = firstAnnotation.body.id || firstAnnotation.body['@id'];
+    
+    if (!imageUrl) {
+      console.log('No image URL found, returning false');
+      return false;
+    }
+    
+    let testImgResp = await fetch(imageUrl);
+    console.log("testImgResp.status", testImgResp.status);
+    if (testImgResp.status == 403 || testImgResp.status == 401) {
+      return false;
+    }
+    else { 
+      return true; 
+    };
+  } catch (error) {
+    console.log('CATCHED ERROR, RETURNING FALSE!!', error);
+    return false;
+  }
+}
+

@@ -6,7 +6,7 @@ import MenuItem from "@material-ui/core/MenuItem";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { withStyles } from "@material-ui/core/styles";
 import { estimatePdfSize } from "pdiiif";
-import { checkImageApiHasCors, checkStreamsaverSupport } from "../utils";
+import { checkImageApiHasCors, checkStreamsaverSupport, checkObjectPublic } from "../utils";
 
 // select an icon from material icons to import and use: https://v4.mui.com/components/material-icons/
 import PDFIcon from "@material-ui/icons/PictureAsPdf";
@@ -86,6 +86,7 @@ class PDIIIFMenuItem extends Component {
       supportsFilesystemAPI: typeof showSaveFilePicker === "function",
       supportsStreamsaver: checkStreamsaverSupport(),
       imageApiHasCors: checkImageApiHasCors(),
+      objectPublic: false, // Will be set in componentDidMount
     };
   }
 
@@ -119,6 +120,12 @@ class PDIIIFMenuItem extends Component {
     }
 
     if (!manifest?.error && manifest?.json) {
+      console.log('MANIFEST LOADED, CHECKING IF PTO AND PUBLIC!!!');
+      
+      // Check if object is public
+      const objectPublic = await checkObjectPublic(manifest.json);
+      console.log('objectPublic:', objectPublic);
+      
       let isPTO = false;
       if (manifest.json.structures && manifest.json.structures.length > 0) {
         if (manifest.json.structures[0]['@type'] == 'sc:Range' || manifest.json.structures[0].type == 'Range') {
@@ -126,7 +133,7 @@ class PDIIIFMenuItem extends Component {
         }
       }
       // Only show PDF's for PTO's
-      if (isPTO) {
+      if (isPTO && objectPublic) {
         // Check size can be estimated
         const estimatedSizeInBytes = await estimatePdfSize({
           manifest: manifest.json,
