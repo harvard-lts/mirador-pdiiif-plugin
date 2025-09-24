@@ -120,11 +120,8 @@ class PDIIIFMenuItem extends Component {
     }
 
     if (!manifest?.error && manifest?.json) {
-      console.log('MANIFEST LOADED, CHECKING IF PTO AND PUBLIC!!!');
-      
       // Check if object is public
       const objectPublic = await checkObjectPublic(manifest.json);
-      console.log('objectPublic:', objectPublic);
       
       let isPTO = false;
       if (manifest.json.structures && manifest.json.structures.length > 0) {

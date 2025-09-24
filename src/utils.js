@@ -55,23 +55,22 @@ export async function checkImageApiHasCors() {
  * @returns {boolean} true if object is public
  */
 export async function checkObjectPublic(manifest) {
-  console.log('CHECKING IF OBJECT IS PUBLIC!!!!');
   try {
     // Get the first canvas from the manifest
     if (!manifest || !manifest.items || manifest.items.length === 0) {
-      console.log('No items found in manifest, returning false');
+      // No items found in manifest, returning false
       return false;
     }
     
     const firstCanvas = manifest.items[0];
     if (!firstCanvas.items || firstCanvas.items.length === 0) {
-      console.log('No items found in first canvas, returning false');
+      // No items found in first canvas, returning false
       return false;
     }
     
     const firstAnnotationPage = firstCanvas.items[0];
     if (!firstAnnotationPage.items || firstAnnotationPage.items.length === 0) {
-      console.log('No items found in first annotation page, returning false');
+      // No items found in first annotation page, returning false
       return false;
     }
     
@@ -79,20 +78,22 @@ export async function checkObjectPublic(manifest) {
     const imageUrl = firstAnnotation.body.id || firstAnnotation.body['@id'];
     
     if (!imageUrl) {
-      console.log('No image URL found, returning false');
+      // No image URL found, returning false
       return false;
     }
     
     let testImgResp = await fetch(imageUrl);
     console.log("testImgResp.status", testImgResp.status);
     if (testImgResp.status == 403 || testImgResp.status == 401) {
+      // Response indicates restricted access, returning false
       return false;
     }
     else { 
+      // Otherwise assume public, returning true
       return true; 
     };
   } catch (error) {
-    console.log('CATCHED ERROR, RETURNING FALSE!!', error);
+    // Error occurred during fetch, assuming not public, returning false
     return false;
   }
 }
