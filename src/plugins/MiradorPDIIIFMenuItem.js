@@ -76,6 +76,8 @@ const mapDispatchToProps = (dispatch, { windowId }) => ({
     dispatch({ type: "PDIIIF/SET_ESTIMATED_SIZE", windowId, size }),
   openDialog: () =>
     dispatch({ type: "OPEN_WINDOW_DIALOG", windowId, dialogType: "PDIIIF" }),
+  openRestrictedDialog: () =>
+    dispatch({ type: "OPEN_WINDOW_DIALOG", windowId, dialogType: "PDIIIF_RESTRICTED" }),
 });
 
 class PDIIIFMenuItem extends Component {
@@ -87,13 +89,19 @@ class PDIIIFMenuItem extends Component {
       supportsStreamsaver: checkStreamsaverSupport(),
       imageApiHasCors: checkImageApiHasCors(),
       objectPublic: false, // Will be set in componentDidMount
+      showMenuItem: false, // Will be set to true if we should show the menu item for restricted objects
     };
   }
 
   openDialogAndCloseMenu() {
-    const { handleClose, openDialog } = this.props;
+    const { handleClose, openDialog, openRestrictedDialog } = this.props;
+    const { objectPublic } = this.state;
 
-    openDialog();
+    if (objectPublic) {
+      openDialog();
+    } else {
+      openRestrictedDialog();
+    }
     handleClose();
   }
 
@@ -122,6 +130,7 @@ class PDIIIFMenuItem extends Component {
     if (!manifest?.error && manifest?.json) {
       // Check if object is public
       const objectPublic = await checkObjectPublic(manifest.json);
+      this.setState({ objectPublic });
       
       let isPTO = false;
       if (manifest.json.structures && manifest.json.structures.length > 0) {
@@ -129,20 +138,26 @@ class PDIIIFMenuItem extends Component {
           isPTO = true;
         }
       }
-      // Only show PDF's for PTO's
-      if (isPTO && objectPublic) {
-        // Check size can be estimated
-        const estimatedSizeInBytes = await estimatePdfSize({
-          manifest: manifest.json,
-          maxWidth: 1500,
-        });
+      // Only show PDF's for PTO's, and only allow download if object is public
+      if (isPTO) {
+        if (objectPublic) {
+          // Check size can be estimated
+          const estimatedSizeInBytes = await estimatePdfSize({
+            manifest: manifest.json,
+            maxWidth: 1500,
+          });
 
-        // Estimated size, or 0
-        // N.B. Sometimes this is NaN, but not sure what triggers this
-        // it seems to be be caused bug in PDIIIIF trying to divide 0 by 0
-        if (estimatedSizeInBytes !== 0) {
-          setAllowPdfDownload();
-          setEstimatedSize(estimatedSizeInBytes);
+          // Estimated size, or 0
+          // N.B. Sometimes this is NaN, but not sure what triggers this
+          // it seems to be be caused bug in PDIIIIF trying to divide 0 by 0
+          if (estimatedSizeInBytes !== 0) {
+            setAllowPdfDownload();
+            setEstimatedSize(estimatedSizeInBytes);
+          }
+        } else {
+          // Object is restricted, but we still want to show the menu item
+          // It will open the restricted dialog instead of allowing download
+          this.setState({ showMenuItem: true });
         }
       }
     }
@@ -151,7 +166,7 @@ class PDIIIFMenuItem extends Component {
   }
 
   renderMenuItemText = () => {
-    const { hasChecked } = this.state;
+    const { hasChecked, objectPublic, showMenuItem } = this.state;
     const { allowPdfDownload } = this.props;
 
     if (!hasChecked) {
@@ -162,16 +177,24 @@ class PDIIIFMenuItem extends Component {
       return "Download PDF";
     }
 
+    if (showMenuItem && !objectPublic) {
+      return "PDF Restricted";
+    }
+
     return "PDF Unavailable";
   };
 
   render() {
     const { classes, allowPdfDownload } = this.props;
-    const { hasChecked } = this.state;
+    const { hasChecked, showMenuItem } = this.state;
+    
+    // Show the menu item if PDF download is allowed OR if it's a restricted object that should show the restricted dialog
+    const shouldShowMenuItem = allowPdfDownload || showMenuItem;
+    
     return (
       <div>
         <MenuItem
-          disabled={!hasChecked || !allowPdfDownload}
+          disabled={!hasChecked || !shouldShowMenuItem}
           onClick={() => this.openDialogAndCloseMenu()}
         >
           <ListItemIcon>
@@ -192,7 +215,8 @@ class PDIIIFMenuItem extends Component {
 PDIIIFMenuItem.propTypes = {
   allowPdfDownload: PropTypes.bool,
   handleClose: PropTypes.func,
-  openPDIIIFDialog: PropTypes.func,
+  openDialog: PropTypes.func,
+  openRestrictedDialog: PropTypes.func,
   manifest: PropTypes.object.isRequired,
   setAllowPdfDownload: PropTypes.func.isRequired,
   setEstimatedSize: PropTypes.func.isRequired,
@@ -200,7 +224,8 @@ PDIIIFMenuItem.propTypes = {
 
 PDIIIFMenuItem.defaultProps = {
   handleClose: () => {},
-  openPDIIIFDialog: () => {},
+  openDialog: () => {},
+  openRestrictedDialog: () => {},
 };
 
 const styles = () => ({

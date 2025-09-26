@@ -36,4 +36,34 @@ describe("PDF menu item", () => {
     );
     await waitFor(() => getByText("PDF Unavailable"));
   });
+
+  it("Should display 'PDF Restricted' for restricted objects", async () => {
+    // Create a component with showMenuItem=true and objectPublic=false in state
+    const TestComponent = () => {
+      const [component] = React.useState(() => {
+        const comp = new MiradorPDIIIFMenuItemPlugin.component({
+          manifest: {},
+          allowPdfDownload: false,
+          setEstimatedSize: () => {},
+          setAllowPdfDownload: () => {},
+          canvasGroupings: [],
+        });
+        
+        // Set the state to simulate a restricted object that should show the menu item
+        comp.state = {
+          ...comp.state,
+          hasChecked: true,
+          showMenuItem: true,
+          objectPublic: false,
+        };
+        
+        return comp;
+      });
+      
+      return component.render();
+    };
+
+    const { getByText } = render(<TestComponent />);
+    await waitFor(() => getByText("PDF Restricted"));
+  });
 });
