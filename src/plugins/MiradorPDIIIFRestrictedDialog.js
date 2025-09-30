@@ -236,10 +236,14 @@ export class PDIIIFRestrictedDialog extends Component {
         if (lookupResponse.ok) {
           const lookupData = await lookupResponse.json();
           appId = lookupData.app_id || '';
+        } else {
+          console.error('Lookup API response not OK:', lookupResponse.status, lookupResponse.statusText);
         }
       } catch (error) {
         console.error('Error fetching app_id from lookup API:', error);
       }
+    } else {
+      console.error('No URN extracted from manifest ID');
     }
     
     if (conversionType === 'current') {
@@ -270,7 +274,10 @@ export class PDIIIFRestrictedDialog extends Component {
       if (rangeSize > 10) {
         // For large requests, send background GET request and show confirmation
         try {
-          await fetch(url, { method: 'GET' });
+          await fetch(url, { 
+            method: 'GET',
+            credentials: 'include'
+          });
           this.setState({
             confirmationMessage: `PDF sent to ${email}`
           });
@@ -308,12 +315,21 @@ export class PDIIIFRestrictedDialog extends Component {
       if (rangeSize > 10) {
         // For large documents, send background GET request and show confirmation
         try {
-          await fetch(url, { method: 'GET' });
-          this.setState({
-            confirmationMessage: `PDF sent to ${email}`
+          const response = await fetch(url, { 
+            method: 'GET',
+            credentials: 'include'
           });
-          // Don't close dialog immediately for large requests
-          return;
+          if (response.ok) {
+            this.setState({
+              confirmationMessage: `PDF sent to ${email}`
+            });
+            // Don't close dialog immediately for large requests
+            return;
+          } else {
+            const errorText = await response.text();
+            console.error('Server error response:', errorText);
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+          }
         } catch (error) {
           console.error('Error sending PDF request:', error);
           // Fall back to opening in new tab if fetch fails
