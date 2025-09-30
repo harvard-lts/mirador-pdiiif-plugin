@@ -19,6 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       
     ],
+    miradorPdiiifPlugin: {
+      printServiceDomain:'https://iiif.lib.harvard.edu',
+      nrsLookupDomain:'https://nrs.harvard.edu',
+    },    
   };
 
   const plugins = [...Plugin];

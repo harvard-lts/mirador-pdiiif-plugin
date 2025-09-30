@@ -27,6 +27,8 @@ const mapStateToProps = (state, { windowId }) => ({
     state.windowDialogs[windowId].openDialog === "PDIIIF_RESTRICTED",
   containerId: state.config.id,
   manifest: state.manifests[state.windows[windowId].manifestId],
+  printServiceHost: state.config.miradorPdiiifPlugin?.printServiceDomain,
+  nrsLookupHost: state.config.miradorPdiiifPlugin?.nrsLookupDomain,
 });
 
 /**
@@ -35,6 +37,7 @@ const mapStateToProps = (state, { windowId }) => ({
 export class PDIIIFRestrictedDialog extends Component {
   constructor(props) {
     super(props);
+    const { printServiceHost, nrsLookupHost } = this.props;
     this.state = {
       conversionType: 'current',
       rangeFrom: '',
@@ -43,7 +46,9 @@ export class PDIIIFRestrictedDialog extends Component {
       rangeToError: false,
       email: '',
       emailError: false,
-      confirmationMessage: ''
+      confirmationMessage: '',
+      printServiceHost: printServiceHost,
+      nrsLookupHost: nrsLookupHost,
     };
   }
 
@@ -209,11 +214,37 @@ export class PDIIIFRestrictedDialog extends Component {
   };
 
   handleConvertToPDF = async () => {
-    const { conversionType, rangeFrom, rangeTo, rangeFromError, rangeToError, email, emailError } = this.state;
+    const { conversionType, rangeFrom, rangeTo, rangeFromError, rangeToError, email, emailError, printServiceHost, nrsLookupHost } = this.state;
+
+    // Extract URN from manifest ID
+    let urn = '';
+    const { manifest } = this.props;
+    if (manifest && manifest.json && manifest.json.id) {
+      const manifestId = manifest.json.id;
+      // Extract URN from URL like https://nrs.harvard.edu/URN-3:FHCL.HOUGH:105813588:MANIFEST:3
+      const match = manifestId.match(/https?:\/\/[^\/]+\/([^:]+:[^:]+:[^:]+):/);
+      if (match) {
+        urn = match[1]; // This would be URN-3:FHCL.HOUGH:105813588
+      }
+    }
+    
+    // Get app_id from lookup API
+    let appId = '';
+    if (urn) {
+      try {
+        const lookupResponse = await fetch(`${nrsLookupHost}/api/resolve/${urn}`);
+        if (lookupResponse.ok) {
+          const lookupData = await lookupResponse.json();
+          appId = lookupData.app_id || '';
+        }
+      } catch (error) {
+        console.error('Error fetching app_id from lookup API:', error);
+      }
+    }
     
     if (conversionType === 'current') {
       // Open new tab for current page conversion
-      window.open('https://iiif.lib.harvard.edu/proxy/printpdf/502349283?n=1&printOpt=single', '_blank');
+      window.open(`${printServiceHost}/proxy/printpdf/${appId}?n=1&printOpt=single`, '_blank');
     } else if (conversionType === 'range') {
       // Validate range inputs and email requirement before proceeding
       const emailRequired = this.isEmailRequired();
@@ -234,7 +265,7 @@ export class PDIIIFRestrictedDialog extends Component {
       const rangeSize = toNum - fromNum + 1;
       
       // Build the URL
-      const url = `https://iiif.lib.harvard.edu/proxy/printpdf/502349283?printOpt=range&start=${rangeFrom}&end=${rangeTo}&email=${encodeURIComponent(email)}`;
+      const url = `${printServiceHost}/proxy/printpdf/${appId}?printOpt=range&start=${rangeFrom}&end=${rangeTo}&email=${encodeURIComponent(email)}`;
       
       if (rangeSize > 10) {
         // For large requests, send background GET request and show confirmation
@@ -272,7 +303,7 @@ export class PDIIIFRestrictedDialog extends Component {
       }
       
       // Build the URL for entire document
-      const url = `https://iiif.lib.harvard.edu/proxy/printpdf/502349283?printOpt=range&start=1&end=${maxCanvas}&email=${encodeURIComponent(email)}`;
+      const url = `${printServiceHost}/proxy/printpdf/${appId}?printOpt=range&start=1&end=${maxCanvas}&email=${encodeURIComponent(email)}`;
       
       if (rangeSize > 10) {
         // For large documents, send background GET request and show confirmation
@@ -443,10 +474,14 @@ PDIIIFRestrictedDialog.propTypes = {
   manifest: PropTypes.object,
   open: PropTypes.bool,
   windowId: PropTypes.string.isRequired,
+  printServiceHost: PropTypes.string,
+  nrsLookupHost: PropTypes.string,
 };
 
 PDIIIFRestrictedDialog.defaultProps = {
   open: false,
+  printServiceHost: null,
+  nrsLookupHost: null,
 };
 
 const styles = () => ({
