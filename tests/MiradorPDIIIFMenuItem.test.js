@@ -38,29 +38,33 @@ describe("PDF menu item", () => {
   });
 
   it("Should display 'PDF Restricted' for restricted objects", async () => {
-    // Create a component with showMenuItem=true and objectPublic=false in state
+    // Create a wrapper component to set internal state
     const TestComponent = () => {
-      const [component] = React.useState(() => {
-        const comp = new MiradorPDIIIFMenuItemPlugin.component({
-          manifest: {},
-          allowPdfDownload: false,
-          setEstimatedSize: () => {},
-          setAllowPdfDownload: () => {},
-          canvasGroupings: [],
-        });
-        
-        // Set the state to simulate a restricted object that should show the menu item
-        comp.state = {
-          ...comp.state,
-          hasChecked: true,
-          showMenuItem: true,
-          objectPublic: false,
-        };
-        
-        return comp;
+      const [stateOverride, setStateOverride] = React.useState({
+        hasChecked: true,
+        showMenuItem: true,
+        objectPublic: false,
       });
       
-      return component.render();
+      // Create ref to component instance
+      const componentRef = React.useRef();
+      
+      React.useEffect(() => {
+        if (componentRef.current) {
+          componentRef.current.setState(stateOverride);
+        }
+      }, [stateOverride]);
+      
+      return (
+        <MiradorPDIIIFMenuItemPlugin.component
+          ref={componentRef}
+          manifest={{}}
+          allowPdfDownload={false}
+          setEstimatedSize={() => {}}
+          setAllowPdfDownload={() => {}}
+          canvasGroupings={[]}
+        />
+      );
     };
 
     const { getByText } = render(<TestComponent />);

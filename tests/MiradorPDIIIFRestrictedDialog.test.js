@@ -13,8 +13,9 @@ describe("PDF restricted dialog", () => {
         classes={{ h2: "" }}
       />
     );
-    expect(getByText("PDF Download Restricted")).toBeInTheDocument();
-    expect(getByText("This document is restricted and cannot be downloaded as a PDF. Please contact the institution for access to this material.")).toBeInTheDocument();
+    expect(getByText("PDF Request")).toBeInTheDocument();
+    expect(getByText(/Lorem ipsum dolor sit amet/)).toBeInTheDocument();
+    expect(getByText("View this object in the old Viewer to download the PDF.")).toBeInTheDocument();
   });
 
   it("Should not render when closed", () => {
