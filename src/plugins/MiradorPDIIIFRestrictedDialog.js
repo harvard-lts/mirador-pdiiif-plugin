@@ -89,16 +89,16 @@ export class PDIIIFRestrictedDialog extends Component {
         maxWidth="xs"
       >
         <DialogTitle disableTypography className={classes.h2}>
-          <Typography variant="h2">PDF Request</Typography>
+          <Typography variant="h2">PDF Download</Typography>
         </DialogTitle>
         <DialogContent>
           <Typography variant="body1" style={{ marginBottom: '16px' }}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+            Services for restricted items such as PDF generation are currently unavailable in the latest version of the Viewer.
           </Typography>
           <Typography variant="body1">
             <a href={this.getOldViewerUrl()} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#1976d2' }}>
-              View this object in the old Viewer to download the PDF.
-            </a>
+              View this item in the old Viewer
+            </a> to download the PDF.
           </Typography>
         </DialogContent>
         <DialogActions>
