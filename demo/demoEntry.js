@@ -19,6 +19,9 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       
     ],
+    miradorPdiiifPlugin: {
+      nrsLookupDomain:'https://nrs.harvard.edu',
+    },    
   };
 
   const plugins = [...Plugin];
