@@ -13,9 +13,8 @@ describe("PDF restricted dialog", () => {
         classes={{ h2: "" }}
       />
     );
-    expect(getByText("PDF Request")).toBeInTheDocument();
-    expect(getByText(/Lorem ipsum dolor sit amet/)).toBeInTheDocument();
-    expect(getByText("View this object in the old Viewer to download the PDF.")).toBeInTheDocument();
+    expect(getByText("PDF Download")).toBeInTheDocument();
+    expect(getByText("View this item in the old Viewer")).toBeInTheDocument();
   });
 
   it("Should not render when closed", () => {
