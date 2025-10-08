@@ -41,9 +41,10 @@ export class PDIIIFRestrictedDialog extends Component {
 
   getOldViewerUrl = () => {
     const { manifest, nrsLookupHost } = this.props;
-    
-    if (manifest && manifest.json && manifest.json.id) {
-      const manifestId = manifest.json.id;
+
+    if (manifest && manifest.json) {
+      const manifestId = manifest && manifest.json ? manifest.json.id || manifest.json['@id'] : null;
+      if (!manifestId) return '#'; // Fallback if no manifest ID
       
       // Extract host from manifest URL
       let host = nrsLookupHost || 'https://nrs.harvard.edu'; // Default fallback
