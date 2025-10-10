@@ -51,31 +51,52 @@ export async function checkImageApiHasCors() {
 
 /**
  * Check Object Public
- * @param {Object} manifest - The IIIF manifest object
+ * @param {Object} manifest - The IIIF manifest object (supports both v2 and v3)
  * @returns {boolean} true if object is public
  */
 export async function checkObjectPublic(manifest) {
   try {
-    // Get the first canvas from the manifest
-    if (!manifest || !manifest.items || manifest.items.length === 0) {
-      // No items found in manifest, returning false
+    let imageUrl = null;
+    
+    // Check if this is a IIIF v3 manifest (has 'items' property)
+    if (manifest.items && manifest.items.length > 0) {
+      // IIIF v3 structure
+      const firstCanvas = manifest.items[0];
+      if (!firstCanvas.items || firstCanvas.items.length === 0) {
+        // No items found in first canvas, returning false
+        return false;
+      }
+      
+      const firstAnnotationPage = firstCanvas.items[0];
+      if (!firstAnnotationPage.items || firstAnnotationPage.items.length === 0) {
+        // No items found in first annotation page, returning false
+        return false;
+      }
+      
+      const firstAnnotation = firstAnnotationPage.items[0];
+      imageUrl = firstAnnotation.body?.id || firstAnnotation.body?.['@id'];
+    } 
+    // Check if this is a IIIF v2 manifest (has 'sequences' property)
+    else if (manifest.sequences && manifest.sequences.length > 0) {
+      // IIIF v2 structure
+      const firstSequence = manifest.sequences[0];
+      if (!firstSequence.canvases || firstSequence.canvases.length === 0) {
+        // No canvases found in first sequence, returning false
+        return false;
+      }
+      
+      const firstCanvas = firstSequence.canvases[0];
+      if (!firstCanvas.images || firstCanvas.images.length === 0) {
+        // No images found in first canvas, returning false
+        return false;
+      }
+      
+      const firstImage = firstCanvas.images[0];
+      imageUrl = firstImage.resource?.['@id'] || firstImage.resource?.id;
+    } else {
+      // Neither v2 nor v3 structure found, returning false
       return false;
     }
-    
-    const firstCanvas = manifest.items[0];
-    if (!firstCanvas.items || firstCanvas.items.length === 0) {
-      // No items found in first canvas, returning false
-      return false;
-    }
-    
-    const firstAnnotationPage = firstCanvas.items[0];
-    if (!firstAnnotationPage.items || firstAnnotationPage.items.length === 0) {
-      // No items found in first annotation page, returning false
-      return false;
-    }
-    
-    const firstAnnotation = firstAnnotationPage.items[0];
-    const imageUrl = firstAnnotation.body.id || firstAnnotation.body['@id'];
     
     if (!imageUrl) {
       // No image URL found, returning false
