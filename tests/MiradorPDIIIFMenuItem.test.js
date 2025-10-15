@@ -18,6 +18,7 @@ describe("PDF menu item", () => {
         allowPdfDownload={true}
         setEstimatedSize={() => {}}
         setAllowPdfDownload={() => {}}
+        resetPdfDownload={() => {}}
         canvasGroupings={[]}
       />
     );
@@ -31,6 +32,7 @@ describe("PDF menu item", () => {
         allowPdfDownload={false}
         setEstimatedSize={() => {}}
         setAllowPdfDownload={() => {}}
+        resetPdfDownload={() => {}}
         canvasGroupings={[]}
       />
     );
@@ -62,6 +64,7 @@ describe("PDF menu item", () => {
           allowPdfDownload={false}
           setEstimatedSize={() => {}}
           setAllowPdfDownload={() => {}}
+          resetPdfDownload={() => {}}
           canvasGroupings={[]}
         />
       );

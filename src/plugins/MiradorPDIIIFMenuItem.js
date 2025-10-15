@@ -42,6 +42,15 @@ const PDIIIFReducer = (state = {}, action) => {
       },
     };
   }
+  if (action.type === "PDIIIF/RESET_PDF_DOWNLOAD") {
+    return {
+      ...state,
+      [action.windowId]: {
+        ...state[action.windowId],
+        PDFDownloadEnabled: false,
+      },
+    };
+  }
   if (action.type === "PDIIIF/SET_ESTIMATED_SIZE") {
     var estimatedSizeInBytes = action.size;
     if (
@@ -72,6 +81,8 @@ const mapStateToProps = (state, { windowId }) => ({
 const mapDispatchToProps = (dispatch, { windowId }) => ({
   setAllowPdfDownload: () =>
     dispatch({ type: "PDIIIF/ALLOW_PDF_DOWNLOAD", windowId }),
+  resetPdfDownload: () =>
+    dispatch({ type: "PDIIIF/RESET_PDF_DOWNLOAD", windowId }),
   setEstimatedSize: (size) =>
     dispatch({ type: "PDIIIF/SET_ESTIMATED_SIZE", windowId, size }),
   openDialog: () =>
@@ -106,6 +117,19 @@ class PDIIIFMenuItem extends Component {
   }
 
   async componentDidMount() {
+    await this.checkManifestStatus();
+  }
+
+  async componentDidUpdate(prevProps) {
+    // Re-check manifest status if the manifest has changed (e.g., when switching pages)
+    if (prevProps.manifest !== this.props.manifest) {
+      // Reset PDF download state in Redux when manifest changes
+      this.props.resetPdfDownload();
+      await this.checkManifestStatus();
+    }
+  }
+
+  async checkManifestStatus() {
     const {
       manifest,
       setAllowPdfDownload,
@@ -115,11 +139,16 @@ class PDIIIFMenuItem extends Component {
     const { supportsFilesystemAPI, supportsStreamsaver, imageApiHasCors } =
       this.state;
 
-    // If already allowed, don't check again
+    // Reset state when checking new manifest
+    this.setState({ 
+      hasChecked: false,
+      objectPublic: false,
+      showMenuItem: false
+    });
+
     // Don't allow PDF download if neither Filesystem API or Streamsaver are supported
     // Or if image API doesn't have CORS headers
     if (
-      allowPdfDownload ||
       (!supportsFilesystemAPI && !supportsStreamsaver) ||
       !imageApiHasCors
     ) {
@@ -219,6 +248,7 @@ PDIIIFMenuItem.propTypes = {
   openRestrictedDialog: PropTypes.func,
   manifest: PropTypes.object.isRequired,
   setAllowPdfDownload: PropTypes.func.isRequired,
+  resetPdfDownload: PropTypes.func.isRequired,
   setEstimatedSize: PropTypes.func.isRequired,
 };
 
